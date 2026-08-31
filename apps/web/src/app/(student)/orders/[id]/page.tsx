@@ -20,6 +20,7 @@ import {
   Sparkles,
   ArrowLeft,
   QrCode,
+  Phone,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
