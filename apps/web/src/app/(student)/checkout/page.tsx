@@ -164,7 +164,7 @@ export default function CheckoutPage() {
                   </div>
                   <div>
                     <h3 className="font-extrabold text-sm text-gray-900 leading-snug">
-                      {item.itemName}
+                      {item.name}
                     </h3>
                     <div className="text-xs text-orange-600 font-bold">
                       ₹{item.price} each
