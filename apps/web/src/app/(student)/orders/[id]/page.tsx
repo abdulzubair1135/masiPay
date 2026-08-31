@@ -7,6 +7,7 @@ import { getSocket } from '../../../../lib/socket';
 import { useLanguage } from '../../../../context/LanguageContext';
 import { OrderTimerBadge } from '../../../../components/OrderTimerBadge';
 import { UpiPaymentModal } from '../../../../components/UpiPaymentModal';
+import { playFoodReadySiren } from '../../../../lib/sound';
 import QRCode from 'qrcode';
 import {
   MapPin,
@@ -21,6 +22,8 @@ import {
   ArrowLeft,
   QrCode,
   Phone,
+  Megaphone,
+  X,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -40,6 +43,7 @@ export default function LiveOrderTrackingPage() {
   const [cancelling, setCancelling] = useState(false);
   const [tokenQrDataUrl, setTokenQrDataUrl] = useState<string>('');
   const [activeAlert, setActiveAlert] = useState<any>(null);
+  const [showSirenModal, setShowSirenModal] = useState(false);
 
   const fetchOrderDetails = async () => {
     try {
@@ -85,7 +89,12 @@ export default function LiveOrderTrackingPage() {
       socket.on('order:status_changed', (data: any) => {
         if (data.orderId === orderId) {
           setOrderData((prev: any) => (prev ? { ...prev, status: data.newStatus } : prev));
-          if (data.newStatus === 'READY' || data.newStatus === 'DELIVERED') {
+          if (data.newStatus === 'READY') {
+            playFoodReadySiren();
+            setShowSirenModal(true);
+            confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
+          } else if (data.newStatus === 'DELIVERED') {
+            setShowSirenModal(false);
             confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
           }
         }
@@ -100,7 +109,9 @@ export default function LiveOrderTrackingPage() {
       socket.on('kitchen:alert', (data: any) => {
         if (data.orderId === orderId) {
           setActiveAlert(data);
-          confetti({ particleCount: 50, spread: 60 });
+          playFoodReadySiren();
+          setShowSirenModal(true);
+          confetti({ particleCount: 80, spread: 70 });
         }
       });
 
@@ -176,7 +187,7 @@ export default function LiveOrderTrackingPage() {
         <p className="text-xs text-gray-500 mb-6">{error}</p>
         <button
           onClick={() => router.push('/orders')}
-          className="bg-orange-600 text-white font-bold px-6 py-3 rounded-2xl"
+          className="bg-orange-600 text-white font-bold px-6 py-3 rounded-2xl text-xs"
         >
           View All Orders
         </button>
@@ -189,24 +200,35 @@ export default function LiveOrderTrackingPage() {
   const isVerifying = paymentData?.status === 'USER_CLAIMED' || status === 'PAYMENT_VERIFYING';
 
   const stages = [
-    { key: 'placed', label: t('orderPlaced'), completed: true },
-    {
-      key: 'payment',
-      label: isPaid ? t('paymentVerified') : isVerifying ? t('paymentVerificationPending') : 'Payment Pending',
-      completed: isPaid,
-      active: isVerifying,
-    },
-    { key: 'prep', label: t('preparing'), completed: ['PREPARING', 'READY', 'DELIVERED', 'COMPLETED'].includes(status), active: status === 'PREPARING' },
-    { key: 'ready', label: t('ready'), completed: ['READY', 'DELIVERED', 'COMPLETED'].includes(status), active: status === 'READY' },
-    { key: 'delivered', label: t('delivered'), completed: ['DELIVERED', 'COMPLETED'].includes(status) },
+    { key: 'PENDING_PAYMENT', label: 'Order Placed', icon: Clock },
+    { key: 'PAYMENT_VERIFYING', label: 'Payment Verifying', icon: CreditCard },
+    { key: 'ACCEPTED', label: 'Order Accepted', icon: CheckCircle2 },
+    { key: 'PREPARING', label: 'Cooking in Kitchen', icon: ChefHat },
+    { key: 'READY', label: 'Ready for Pickup', icon: BellRing },
+    { key: 'DELIVERED', label: 'Delivered', icon: Sparkles },
   ];
 
+  const getStageIndex = (s: string) => {
+    switch (s) {
+      case 'PENDING_PAYMENT': return 0;
+      case 'PAYMENT_VERIFYING': return 1;
+      case 'ACCEPTED': return 2;
+      case 'PREPARING': return 3;
+      case 'READY': return 4;
+      case 'DELIVERED':
+      case 'COMPLETED': return 5;
+      default: return 0;
+    }
+  };
+
+  const currentStageIndex = getStageIndex(status);
+
   return (
-    <div className="max-w-md mx-auto px-4 py-4 pb-16">
-      {/* Back button */}
+    <div className="max-w-md mx-auto px-4 py-4 pb-20">
+      {/* Back Button */}
       <button
         onClick={() => router.push('/orders')}
-        className="flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-orange-600 mb-3 transition"
+        className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900 mb-3"
       >
         <ArrowLeft className="w-4 h-4" />
         <span>Back to Orders</span>
@@ -218,7 +240,7 @@ export default function LiveOrderTrackingPage() {
           <div className="flex items-center gap-2.5 mb-1">
             <span className="text-xl">📢</span>
             <span className="text-xs font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">
-              Kitchen Notice / मासी का संदेश
+              Kitchen Alert / मासी का संदेश
             </span>
           </div>
           <p className="text-sm font-extrabold leading-snug">
@@ -249,7 +271,7 @@ export default function LiveOrderTrackingPage() {
               <img
                 src={tokenQrDataUrl}
                 alt={`Token #${orderData.orderNumber}`}
-                className="w-48 h-48 mx-auto"
+                className="w-48 h-48 mx-auto rounded-2xl"
               />
             </div>
           </div>
@@ -260,83 +282,70 @@ export default function LiveOrderTrackingPage() {
         </div>
       </div>
 
-      {/* Payment Action banner */}
-      {!isPaid && (
-        <div className="bg-amber-50 rounded-3xl p-5 border border-amber-200 mb-4 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-xs font-extrabold text-amber-900 flex items-center gap-1.5">
-                <CreditCard className="w-4 h-4 text-amber-700" />
-                <span>Payment Verification Required</span>
-              </div>
-              <p className="text-[11px] text-amber-700 mt-1 leading-snug">
-                {isVerifying
-                  ? 'You claimed payment. Masi is checking her UPI app to verify.'
-                  : 'Please pay via UPI so Masi can accept and start preparing your meal.'}
-              </p>
-            </div>
-
-            <button
-              onClick={() => setUpiModalOpen(true)}
-              className="bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md transition whitespace-nowrap active:scale-95"
-            >
-              {isVerifying ? 'View QR' : 'Pay ₹' + orderData.total}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 5-Stage Live Timeline */}
+      {/* Live Order Status Pipeline Card */}
       <div className="bg-white rounded-3xl p-5 border border-orange-100 shadow-sm mb-4">
-        <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-wider mb-4">
-          Kitchen Live Status
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">
+            Live Kitchen Progress
+          </h2>
+          <span className="text-xs font-black px-3 py-1 rounded-full bg-orange-50 text-orange-700 border border-orange-200 uppercase">
+            {status}
+          </span>
+        </div>
 
+        {/* Vertical Pipeline Steps */}
         <div className="space-y-4">
-          {stages.map((stg, idx) => (
-            <div key={stg.key} className="flex items-center gap-3 relative">
-              {idx < stages.length - 1 && (
-                <div
-                  className={`absolute left-3.5 top-7 bottom-0 w-0.5 -mb-4 ${
-                    stg.completed ? 'bg-emerald-500' : 'bg-gray-200'
-                  }`}
-                />
-              )}
+          {stages.slice(0, 5).map((stage, idx) => {
+            const isCompleted = currentStageIndex > idx;
+            const isCurrent = currentStageIndex === idx;
+            const Icon = stage.icon;
 
-              <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all ${
-                  stg.completed
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : stg.active
-                    ? 'bg-orange-600 text-white animate-pulse shadow-md shadow-orange-600/30 ring-4 ring-orange-100'
-                    : 'bg-gray-100 text-gray-400'
-                }`}
-              >
-                {stg.completed ? <CheckCircle2 className="w-4 h-4" /> : idx + 1}
-              </div>
-
-              <div>
+            return (
+              <div key={stage.key} className="flex items-start gap-3">
                 <div
-                  className={`text-xs font-extrabold ${
-                    stg.completed
-                      ? 'text-emerald-700'
-                      : stg.active
-                      ? 'text-orange-600 font-black'
-                      : 'text-gray-400'
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all ${
+                    isCompleted
+                      ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                      : isCurrent
+                      ? 'bg-orange-600 text-white ring-4 ring-orange-100 animate-pulse'
+                      : 'bg-gray-100 text-gray-400'
                   }`}
                 >
-                  {stg.label}
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="pt-1 flex-1">
+                  <div
+                    className={`text-xs font-extrabold ${
+                      isCurrent
+                        ? 'text-orange-600 text-sm'
+                        : isCompleted
+                        ? 'text-gray-900'
+                        : 'text-gray-400'
+                    }`}
+                  >
+                    {stage.label}
+                  </div>
+                  {isCurrent && status === 'PREPARING' && (
+                    <div className="text-[11px] text-gray-500 font-medium mt-0.5">
+                      🍳 Masi is currently cooking your hot food in the kitchen.
+                    </div>
+                  )}
+                  {isCurrent && status === 'READY' && (
+                    <div className="text-[11px] text-emerald-600 font-extrabold mt-0.5 animate-bounce">
+                      🔔 Khana ban gaya! Counter par Token #{orderData.orderNumber} dikhayein!
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
-      {/* Items Summary */}
+      {/* Ordered Items Summary */}
       <div className="bg-white rounded-3xl p-5 border border-orange-100 shadow-sm mb-4">
         <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-wider mb-3">
-          Order Items
+          Order Summary ({orderData.items?.length || 0} items)
         </h2>
 
         <div className="divide-y divide-gray-100">
@@ -382,6 +391,42 @@ export default function LiveOrderTrackingPage() {
           </button>
         )}
       </div>
+
+      {/* 🚨 Fullscreen LOUD SIREN Food Ready Emergency Modal */}
+      {showSirenModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 animate-in fade-in backdrop-blur-md">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full text-center relative shadow-2xl border-4 border-emerald-500 animate-in zoom-in-95">
+            <div className="w-20 h-20 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3 animate-bounce shadow-lg shadow-emerald-500/20">
+              <Megaphone className="w-10 h-10" />
+            </div>
+
+            <div className="inline-block bg-emerald-100 text-emerald-800 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider mb-2">
+              🔔 Siren Alert / खाना तैयार है!
+            </div>
+
+            <h2 className="text-2xl font-black text-gray-900">
+              आजाओ काउंटर पर!
+            </h2>
+
+            <div className="my-3 p-3 bg-orange-50 rounded-2xl border-2 border-orange-300">
+              <div className="text-xs text-orange-800 font-bold">Aapka Order Token</div>
+              <div className="text-3xl font-black text-orange-600">TOKEN #{orderData.orderNumber}</div>
+            </div>
+
+            <p className="text-xs text-gray-600 font-bold mb-5">
+              {activeAlert?.message || 'Masi ne aapka khana bana diya hai. Jaldi se counter par jakar Token dikhayein aur garma-garam khana lein!'}
+            </p>
+
+            <button
+              onClick={() => setShowSirenModal(false)}
+              className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 text-white font-black text-xs rounded-2xl shadow-xl shadow-emerald-600/30 transition active:scale-95 flex items-center justify-center gap-2"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>🚀 Main Counter Par Jaa Raha Hoon!</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* UPI Modal */}
       <UpiPaymentModal
