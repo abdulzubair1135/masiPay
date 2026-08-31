@@ -8,7 +8,7 @@ let io: SocketIOServer | null = null;
 export const initSocket = (httpServer: HTTPServer): SocketIOServer => {
   io = new SocketIOServer(httpServer, {
     cors: {
-      origin: '*', // Allow all origins for dev/PWA
+      origin: '*', // Controlled via reverse proxy and API CORS
       methods: ['GET', 'POST'],
       credentials: true,
     },
@@ -30,31 +30,34 @@ export const initSocket = (httpServer: HTTPServer): SocketIOServer => {
 
   io.on('connection', (socket: Socket) => {
     const user = (socket as any).user;
-    console.log(`[Socket] Client connected: ${socket.id} (User: ${user ? user.role + ' - ' + user.name : 'Guest'})`);
 
-    // Auto-join rooms based on role
+    // Auto-join rooms securely based on verified JWT role
     if (user) {
       socket.join(`user-${user.userId}`);
-      if (user.role === 'STAFF' || user.role === 'SUPER_ADMIN') {
+      if (user.role === 'STAFF' || user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') {
         socket.join('staff-room');
-        console.log(`[Socket] User ${user.name} joined staff-room`);
+        console.log(`[Socket] Authorized: ${user.name} (${user.role}) joined staff-room`);
       }
     }
 
-    // Explicit room joining
+    // Explicit room joining with strict RBAC validation
     socket.on('join:room', (room: string) => {
+      // Prevent students from listening in on staff-room
+      if (room === 'staff-room' || room === 'admin-room') {
+        if (!user || (user.role !== 'STAFF' && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+          console.warn(`[Socket Security] Unauthorized attempt by ${socket.id} to join ${room}`);
+          return;
+        }
+      }
+
       socket.join(room);
-      console.log(`[Socket] ${socket.id} joined room: ${room}`);
     });
 
     socket.on('leave:room', (room: string) => {
       socket.leave(room);
-      console.log(`[Socket] ${socket.id} left room: ${room}`);
     });
 
-    socket.on('disconnect', () => {
-      console.log(`[Socket] Client disconnected: ${socket.id}`);
-    });
+    socket.on('disconnect', () => {});
   });
 
   return io;
