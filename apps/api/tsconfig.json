@@ -13,5 +13,5 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/test-e2e.ts"]
+  "exclude": ["node_modules", "dist", "src/test-e2e.ts", "src/test-100-users-load.ts"]
 }

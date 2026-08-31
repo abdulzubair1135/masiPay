@@ -16,6 +16,7 @@ router.post('/', validateBody(createOrderSchema), OrderController.createOrder);
 router.get('/my', OrderController.getMyOrders);
 router.get('/:id', OrderController.getOrderById);
 router.post('/:id/payment-claimed', validateBody(claimPaymentSchema), OrderController.claimPayment);
+router.post('/:id/claim-payment', validateBody(claimPaymentSchema), OrderController.claimPayment);
 router.post('/:id/cancel', validateBody(cancelOrderSchema), OrderController.studentCancel);
 
 export default router;

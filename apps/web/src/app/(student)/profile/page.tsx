@@ -93,14 +93,16 @@ export default function StudentProfilePage() {
         </Link>
 
         <Link
-          href="/favorites"
+          href="/invite"
           className="flex items-center justify-between p-4 hover:bg-orange-50/50 transition"
         >
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
-              <Heart className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">
+              <User className="w-4 h-4" />
             </div>
-            <span className="font-extrabold text-sm text-gray-800">{t('favorites')}</span>
+            <span className="font-extrabold text-sm text-gray-800">
+              {language === 'hi' ? 'दोस्तों को इनवाइट करें / QR शेयर' : 'Invite Friends / Share QR'}
+            </span>
           </div>
           <ChevronRight className="w-4 h-4 text-gray-400" />
         </Link>

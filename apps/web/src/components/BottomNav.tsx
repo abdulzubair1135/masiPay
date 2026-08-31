@@ -18,9 +18,9 @@ export const BottomNav: React.FC = () => {
   }
 
   const links = [
-    { href: '/menu', label: 'Menu', icon: UtensilsCrossed },
+    { href: '/menu', label: language === 'hi' ? 'मेनू' : 'Menu', icon: UtensilsCrossed },
     { href: '/orders', label: t('myOrders'), icon: Clock },
-    { href: '/favorites', label: t('favorites'), icon: Heart },
+    { href: '/invite', label: language === 'hi' ? 'शेयर' : 'Invite', icon: Heart },
     { href: '/profile', label: t('profile'), icon: User },
   ];
 
