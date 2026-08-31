@@ -9,7 +9,7 @@ import { UtensilsCrossed, Clock, Heart, User } from 'lucide-react';
 
 export const BottomNav: React.FC = () => {
   const pathname = usePathname();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { totalItemsCount, total } = useCart();
 
   // Hide bottom nav on staff and admin routes
