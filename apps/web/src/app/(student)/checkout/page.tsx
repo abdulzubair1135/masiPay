@@ -6,42 +6,31 @@ import { useCart } from '../../../context/CartContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { api } from '../../../lib/api';
-import { UpiPaymentModal } from '../../../components/UpiPaymentModal';
 import {
   ShoppingBag,
   Plus,
   Minus,
   Trash2,
   QrCode,
-  FileText,
   ArrowRight,
+  Banknote,
+  Smartphone,
+  CheckCircle2,
+  Clock,
   Sparkles,
 } from 'lucide-react';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, table, setTable, updateQuantity, removeItem, updateInstruction, clearCart, subtotal, total } = useCart();
-  const { user, loading: authLoading } = useAuth();
-  const { t } = useLanguage();
+  const { items, table, updateQuantity, removeItem, updateInstruction, clearCart, subtotal, total } = useCart();
+  const { user } = useAuth();
+  const { t, language } = useLanguage();
 
+  const [paymentMode, setPaymentMode] = useState<'CASH' | 'UPI'>('CASH');
   const [orderNotes, setOrderNotes] = useState('');
-  const [canteenSettings, setCanteenSettings] = useState<any>(null);
   const [placingOrder, setPlacingOrder] = useState(false);
-  const [createdOrder, setCreatedOrder] = useState<any>(null);
-  const [upiModalOpen, setUpiModalOpen] = useState(false);
-  const [claimLoading, setClaimLoading] = useState(false);
 
-  useEffect(() => {
-    async function loadSettings() {
-      try {
-        const res = await api.get('/admin/settings');
-        setCanteenSettings(res.data.data);
-      } catch (err) {}
-    }
-    loadSettings();
-  }, []);
-
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrderDirect = async () => {
     if (items.length === 0) return;
 
     if (!user) {
@@ -62,49 +51,30 @@ export default function CheckoutPage() {
         notes: orderNotes.trim() || undefined,
       };
 
+      // 1. Create Order
       const res = await api.post('/orders', payload);
       const order = res.data.data;
-      setCreatedOrder(order);
-      setUpiModalOpen(true);
-    } catch (err: any) {
-      alert(err.message || 'Failed to place order. Please try again.');
-    } finally {
-      setPlacingOrder(false);
-    }
-  };
 
-  const handlePaymentClaimed = async (
-    transactionRef?: string,
-    paymentMethod?: 'UPI_MANUAL' | 'CASH',
-    proofImage?: string
-  ) => {
-    if (!createdOrder) return;
-    try {
-      setClaimLoading(true);
+      // 2. Automatically claim payment (Bypass / Instant Token)
       try {
-        await api.post(`/orders/${createdOrder._id}/claim-payment`, {
-          transactionReference: transactionRef || undefined,
-          paymentMethod: paymentMethod || 'UPI_MANUAL',
-          proofImage: proofImage || undefined,
+        await api.post(`/orders/${order._id}/claim-payment`, {
+          transactionReference: paymentMode === 'CASH' ? 'CASH_AT_COUNTER' : 'UPI_DIRECT',
+          paymentMethod: paymentMode === 'CASH' ? 'CASH' : 'UPI_MANUAL',
         });
       } catch (e) {
-        // Fallback for earlier backend route
-        await api.post(`/orders/${createdOrder._id}/payment-claimed`, {
-          transactionReference: transactionRef || undefined,
-          paymentMethod: paymentMethod || 'UPI_MANUAL',
-          proofImage: proofImage || undefined,
+        // Fallback route
+        await api.post(`/orders/${order._id}/payment-claimed`, {
+          transactionReference: paymentMode === 'CASH' ? 'CASH_AT_COUNTER' : 'UPI_DIRECT',
+          paymentMethod: paymentMode === 'CASH' ? 'CASH' : 'UPI_MANUAL',
         });
       }
+
+      // 3. Clear Tray & Go Straight to Live Tracking
       clearCart();
-      setUpiModalOpen(false);
-      router.push(`/orders/${createdOrder._id}`);
+      router.push(`/orders/${order._id}`);
     } catch (err: any) {
-      console.warn('Payment claim notice:', err);
-      clearCart();
-      setUpiModalOpen(false);
-      router.push(`/orders/${createdOrder._id}`);
-    } finally {
-      setClaimLoading(false);
+      alert(err.message || 'Failed to place order. Please try again.');
+      setPlacingOrder(false);
     }
   };
 
@@ -118,7 +88,7 @@ export default function CheckoutPage() {
         <p className="text-xs text-gray-500 mb-6">Your tray is empty. Explore tasty snacks and hot meals!</p>
         <button
           onClick={() => router.push('/menu')}
-          className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold px-6 py-3 rounded-2xl shadow-md transition"
+          className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold px-6 py-3 rounded-2xl shadow-md transition text-xs"
         >
           Explore Food Menu
         </button>
@@ -127,7 +97,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="max-w-md mx-auto px-4 py-4 pb-28">
+    <div className="max-w-md mx-auto px-4 py-4 pb-36">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
           Review Order
@@ -141,7 +111,7 @@ export default function CheckoutPage() {
         </button>
       </div>
 
-      {/* Dynamic Token Badge */}
+      {/* Dynamic Token Banner */}
       <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white p-4 rounded-3xl shadow-sm mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
@@ -152,13 +122,13 @@ export default function CheckoutPage() {
               Self-Pickup Token
             </div>
             <div className="text-sm font-extrabold">
-              Personal Dynamic Token QR will be generated
+              Dynamic Personal Token QR will be generated
             </div>
           </div>
         </div>
       </div>
 
-      {/* Items List */}
+      {/* Ordered Items List */}
       <div className="bg-white rounded-3xl p-4 border border-orange-100 shadow-sm mb-4 space-y-4">
         <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">
           Ordered Items ({items.length})
@@ -222,6 +192,49 @@ export default function CheckoutPage() {
         </div>
       </div>
 
+      {/* Payment Mode Selector */}
+      <div className="bg-white rounded-3xl p-4 border border-orange-100 shadow-sm mb-4">
+        <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-wider mb-3">
+          Choose Payment Mode
+        </h2>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={() => setPaymentMode('CASH')}
+            className={`p-3.5 rounded-2xl border-2 text-left transition-all ${
+              paymentMode === 'CASH'
+                ? 'border-emerald-500 bg-emerald-50/50 shadow-md shadow-emerald-500/10'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <Banknote className={`w-5 h-5 ${paymentMode === 'CASH' ? 'text-emerald-600' : 'text-gray-400'}`} />
+              {paymentMode === 'CASH' && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+            </div>
+            <div className="text-xs font-black text-gray-900">Cash at Counter</div>
+            <div className="text-[10px] text-gray-500 font-bold">Pay directly to Masi</div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPaymentMode('UPI')}
+            className={`p-3.5 rounded-2xl border-2 text-left transition-all ${
+              paymentMode === 'UPI'
+                ? 'border-orange-500 bg-orange-50/50 shadow-md shadow-orange-500/10'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <Smartphone className={`w-5 h-5 ${paymentMode === 'UPI' ? 'text-orange-600' : 'text-gray-400'}`} />
+              {paymentMode === 'UPI' && <CheckCircle2 className="w-4 h-4 text-orange-600" />}
+            </div>
+            <div className="text-xs font-black text-gray-900">UPI Online</div>
+            <div className="text-[10px] text-gray-500 font-bold">GPay / PhonePe / Paytm</div>
+          </button>
+        </div>
+      </div>
+
       {/* Bill Breakdown */}
       <div className="bg-white rounded-3xl p-5 border border-orange-100 shadow-sm mb-6 space-y-2">
         <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-wider mb-2">
@@ -241,39 +254,29 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {/* Place Order CTA */}
-      <div className="fixed bottom-16 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-200 z-30 max-w-md mx-auto">
+      {/* 1-Click Instant Confirm CTA */}
+      <div className="fixed bottom-16 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-gray-200 z-30 max-w-md mx-auto shadow-2xl">
         <button
-          onClick={handlePlaceOrder}
+          onClick={handlePlaceOrderDirect}
           disabled={placingOrder}
-          className="w-full flex items-center justify-between bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-extrabold py-4 px-6 rounded-2xl shadow-xl shadow-orange-600/30 transition-all active:scale-[0.98] disabled:opacity-50"
+          className={`w-full flex items-center justify-between text-white font-black py-4 px-6 rounded-2xl shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 ${
+            paymentMode === 'CASH'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 shadow-emerald-600/30'
+              : 'bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 shadow-orange-600/30'
+          }`}
         >
           <div className="text-left">
-            <div className="text-[10px] text-orange-200 uppercase tracking-wider font-bold">
-              Pay via UPI & Get Token
+            <div className="text-[10px] text-white/80 uppercase tracking-wider font-bold">
+              {paymentMode === 'CASH' ? '💵 Cash at Counter' : '📱 UPI Payment'}
             </div>
             <div className="text-base font-black">₹{total.toFixed(2)}</div>
           </div>
           <div className="flex items-center gap-2">
-            <span>{placingOrder ? 'Creating Token...' : 'Get Token & Pay'}</span>
+            <span>{placingOrder ? 'Generating Token...' : 'Confirm & Get Token'}</span>
             <ArrowRight className="w-5 h-5" />
           </div>
         </button>
       </div>
-
-      {/* UPI Payment Modal */}
-      {createdOrder && (
-        <UpiPaymentModal
-          isOpen={upiModalOpen}
-          onClose={() => setUpiModalOpen(false)}
-          orderNumber={createdOrder.orderNumber}
-          total={createdOrder.total}
-          upiId={canteenSettings?.upiId || 'canteen@upi'}
-          payeeName={canteenSettings?.canteenName || 'Masi Canteen'}
-          onClaimPaid={handlePaymentClaimed}
-          loading={claimLoading}
-        />
-      )}
     </div>
   );
 }
