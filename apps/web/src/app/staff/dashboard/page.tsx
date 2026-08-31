@@ -339,7 +339,7 @@ export default function StaffKitchenDashboard() {
                       </div>
                     </div>
 
-                    <OrderTimerBadge startTime={order.createdAt} isCompleted={false} />
+                    <OrderTimerBadge createdAt={order.createdAt} />
                   </div>
 
                   {/* Student Info with Live Selfie Photo */}

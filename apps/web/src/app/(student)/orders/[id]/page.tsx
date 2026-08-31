@@ -213,7 +213,7 @@ export default function LiveOrderTrackingPage() {
         )}
 
         <div className="flex items-center justify-center gap-2">
-          <OrderTimerBadge startTime={orderData.createdAt} isCompleted={['DELIVERED', 'COMPLETED', 'CANCELLED'].includes(status)} />
+          <OrderTimerBadge createdAt={orderData.createdAt} />
         </div>
       </div>
 
