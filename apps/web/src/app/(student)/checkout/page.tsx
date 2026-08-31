@@ -102,7 +102,7 @@ export default function CheckoutPage() {
           onClick={() => router.push('/menu')}
           className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold px-6 py-3 rounded-2xl shadow-md transition"
         >
-          {t('menu')}
+          Explore Food Menu
         </button>
       </div>
     );
