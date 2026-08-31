@@ -21,9 +21,9 @@ export interface IUser extends Document {
 const userSchema = new Schema<IUser>(
   {
     name: { type: String, required: true, trim: true },
-    email: { type: String, trim: true, lowercase: true, sparse: true },
-    phone: { type: String, trim: true, sparse: true },
-    rollNumber: { type: String, trim: true, uppercase: true, sparse: true },
+    email: { type: String, trim: true, lowercase: true, sparse: true, unique: true },
+    phone: { type: String, trim: true, sparse: true, unique: true },
+    rollNumber: { type: String, trim: true, uppercase: true, sparse: true, unique: true },
     passwordHash: { type: String },
     profileImage: { type: String },
     language: { type: String, enum: ['en', 'hi', 'gu'], default: 'en' },
@@ -34,8 +34,5 @@ const userSchema = new Schema<IUser>(
 );
 
 userSchema.index({ role: 1, status: 1 });
-userSchema.index({ email: 1 }, { unique: true, sparse: true });
-userSchema.index({ phone: 1 }, { unique: true, sparse: true });
-userSchema.index({ rollNumber: 1 }, { unique: true, sparse: true });
 
 export const User = mongoose.model<IUser>('User', userSchema);

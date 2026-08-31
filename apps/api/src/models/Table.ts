@@ -24,7 +24,6 @@ const tableSchema = new Schema<ITable>(
   { timestamps: true }
 );
 
-tableSchema.index({ secureToken: 1 });
 tableSchema.index({ status: 1 });
 
 export const Table = mongoose.model<ITable>('Table', tableSchema);
