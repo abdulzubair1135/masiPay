@@ -38,6 +38,7 @@ export default function LiveOrderTrackingPage() {
   const [claimLoading, setClaimLoading] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [tokenQrDataUrl, setTokenQrDataUrl] = useState<string>('');
+  const [activeAlert, setActiveAlert] = useState<any>(null);
 
   const fetchOrderDetails = async () => {
     try {
@@ -47,15 +48,17 @@ export default function LiveOrderTrackingPage() {
       setOrderData(ord);
       setPaymentData(res.data.data.payment);
       setHistory(res.data.data.history);
+      if (ord.kitchenAlert) {
+        setActiveAlert(ord.kitchenAlert);
+      }
 
       // Generate live Dynamic Pickup QR for this order
-      if (ord?.orderNumber) {
+      if (ord && ord.orderNumber) {
         const qrPayload = JSON.stringify({
-          orderNumber: ord.orderNumber,
           orderId: ord._id,
-          name: ord.userId?.name,
+          token: ord.orderNumber,
           phone: ord.userId?.phone,
-          total: ord.total,
+          amount: ord.total,
         });
         const dataUrl = await QRCode.toDataURL(qrPayload, {
           width: 260,
@@ -93,19 +96,33 @@ export default function LiveOrderTrackingPage() {
         }
       });
 
+      socket.on('kitchen:alert', (data: any) => {
+        if (data.orderId === orderId) {
+          setActiveAlert(data);
+          confetti({ particleCount: 50, spread: 60 });
+        }
+      });
+
       return () => {
         socket.emit('leave:room', `order-${orderId}`);
         socket.off('order:status_changed');
         socket.off('payment:verified');
+        socket.off('kitchen:alert');
       };
     }
   }, [orderId]);
 
-  const handleClaimPayment = async (txRef?: string) => {
+  const handleClaimPayment = async (
+    txRef?: string,
+    paymentMethod?: 'UPI_MANUAL' | 'CASH',
+    proofImage?: string
+  ) => {
     try {
       setClaimLoading(true);
       await api.post(`/orders/${orderId}/claim-payment`, {
-        transactionReference: txRef,
+        transactionReference: txRef || undefined,
+        paymentMethod: paymentMethod || 'UPI_MANUAL',
+        proofImage: proofImage || undefined,
       });
       setUpiModalOpen(false);
       await fetchOrderDetails();
@@ -183,6 +200,21 @@ export default function LiveOrderTrackingPage() {
         <ArrowLeft className="w-4 h-4" />
         <span>Back to Orders</span>
       </button>
+
+      {/* Kitchen Alert Banner */}
+      {activeAlert && (
+        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-3xl p-4 mb-4 shadow-xl shadow-purple-600/20 border-2 border-purple-300 animate-bounce">
+          <div className="flex items-center gap-2.5 mb-1">
+            <span className="text-xl">📢</span>
+            <span className="text-xs font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">
+              Kitchen Notice / मासी का संदेश
+            </span>
+          </div>
+          <p className="text-sm font-extrabold leading-snug">
+            {activeAlert.message}
+          </p>
+        </div>
+      )}
 
       {/* Hero Token QR Card */}
       <div className="bg-white rounded-3xl p-6 border-2 border-orange-200 shadow-xl mb-4 text-center relative overflow-hidden">

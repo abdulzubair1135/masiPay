@@ -32,6 +32,11 @@ export interface IOrder extends Document {
   status: OrderStatus;
   cancellationReason?: string;
   notes?: string;
+  kitchenAlert?: {
+    type: 'CALL_TO_COUNTER' | 'DELAY' | 'OUT_OF_STOCK' | 'CUSTOM';
+    message: string;
+    sentAt: Date;
+  };
   createdAt: Date;
   acceptedAt?: Date;
   preparingAt?: Date;
@@ -80,6 +85,11 @@ const orderSchema = new Schema<IOrder>(
     },
     cancellationReason: { type: String },
     notes: { type: String },
+    kitchenAlert: {
+      type: { type: String, enum: ['CALL_TO_COUNTER', 'DELAY', 'OUT_OF_STOCK', 'CUSTOM'] },
+      message: { type: String },
+      sentAt: { type: Date, default: Date.now },
+    },
     acceptedAt: { type: Date },
     preparingAt: { type: Date },
     readyAt: { type: Date },

@@ -24,11 +24,13 @@ export class OrderController {
   static async claimPayment(req: AuthenticatedRequest, res: Response) {
     try {
       const id = req.params.id as string;
-      const { transactionReference } = req.body;
+      const { transactionReference, paymentMethod, proofImage } = req.body;
       const result = await PaymentService.claimPayment(
         id,
         req.user!._id.toString(),
-        transactionReference
+        transactionReference,
+        paymentMethod,
+        proofImage
       );
       sendSuccess(res, result, 'Payment claim submitted. Staff will verify shortly.');
     } catch (error: any) {

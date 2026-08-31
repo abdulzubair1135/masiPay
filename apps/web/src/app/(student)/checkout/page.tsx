@@ -73,12 +73,18 @@ export default function CheckoutPage() {
     }
   };
 
-  const handlePaymentClaimed = async (transactionRef?: string) => {
+  const handlePaymentClaimed = async (
+    transactionRef?: string,
+    paymentMethod?: 'UPI_MANUAL' | 'CASH',
+    proofImage?: string
+  ) => {
     if (!createdOrder) return;
     try {
       setClaimLoading(true);
       await api.post(`/orders/${createdOrder._id}/claim-payment`, {
         transactionReference: transactionRef || undefined,
+        paymentMethod: paymentMethod || 'UPI_MANUAL',
+        proofImage: proofImage || undefined,
       });
       clearCart();
       setUpiModalOpen(false);

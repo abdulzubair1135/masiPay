@@ -18,6 +18,8 @@ export const createOrderSchema = z.object({
 
 export const claimPaymentSchema = z.object({
   transactionReference: z.string().max(100).optional(),
+  paymentMethod: z.enum(['UPI_MANUAL', 'CASH']).default('UPI_MANUAL'),
+  proofImage: z.string().optional(), // Cash note photo or UPI screenshot
 });
 
 export const verifyPaymentSchema = z.object({
@@ -30,4 +32,9 @@ export const rejectPaymentSchema = z.object({
 
 export const cancelOrderSchema = z.object({
   reason: z.string().min(3, 'Cancellation reason is required'),
+});
+
+export const kitchenAlertSchema = z.object({
+  type: z.enum(['CALL_TO_COUNTER', 'DELAY', 'OUT_OF_STOCK', 'CUSTOM']),
+  message: z.string().min(1, 'Alert message is required'),
 });

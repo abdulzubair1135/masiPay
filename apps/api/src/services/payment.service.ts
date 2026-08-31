@@ -11,8 +11,14 @@ export class PaymentService {
   /**
    * Student clicks "I HAVE PAID"
    */
-  static async claimPayment(orderId: string, userId: string, transactionReference?: string) {
-    const order = await Order.findById(orderId).populate('userId', 'name rollNumber profileImage');
+  static async claimPayment(
+    orderId: string,
+    userId: string,
+    transactionReference?: string,
+    method: 'UPI_MANUAL' | 'CASH' = 'UPI_MANUAL',
+    proofImage?: string
+  ) {
+    const order = await Order.findById(orderId).populate('userId', 'name rollNumber profileImage phone');
     if (!order) throw new Error('Order not found');
 
     if (order.userId._id.toString() !== userId) {
@@ -29,13 +35,16 @@ export class PaymentService {
         orderId: order._id,
         userId: order.userId._id,
         amount: order.total,
-        method: 'UPI_MANUAL',
+        method: method || 'UPI_MANUAL',
         status: 'USER_CLAIMED',
         transactionReference,
+        proofImage,
       });
     } else {
       payment.status = 'USER_CLAIMED';
+      payment.method = method || payment.method;
       if (transactionReference) payment.transactionReference = transactionReference;
+      if (proofImage) payment.proofImage = proofImage;
       payment.updatedAt = new Date();
       await payment.save();
     }

@@ -21,6 +21,14 @@ import {
   RefreshCw,
   Phone,
   ShieldAlert,
+  Banknote,
+  Smartphone,
+  Eye,
+  Megaphone,
+  Hourglass,
+  AlertTriangle,
+  MessageCircle,
+  X,
 } from 'lucide-react';
 
 export default function StaffKitchenDashboard() {
@@ -34,10 +42,13 @@ export default function StaffKitchenDashboard() {
     ready: 0,
     completed: 0,
     todaySales: 0,
+    cashSales: 0,
+    upiSales: 0,
   });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'ALL' | 'PAYMENT' | 'PREPARING' | 'READY'>('ALL');
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [selectedProofImg, setSelectedProofImg] = useState<string | null>(null);
 
   const fetchActiveOrders = async () => {
     try {
@@ -64,14 +75,13 @@ export default function StaffKitchenDashboard() {
 
     fetchActiveOrders();
 
-    // Socket real-time listeners for Staff Room
     const socket = getSocket();
     socket.emit('join:room', 'staff-room');
 
     socket.on('order:created', (newOrder: any) => {
       if (soundEnabled) playOrderBellSound();
       setOrders((prev) => [newOrder, ...prev]);
-      setSummary((prev: any) => ({ ...prev, newOrders: prev.newOrders + 1 }));
+      setSummary((prev: any) => ({ ...prev, newOrders: (prev.newOrders || 0) + 1 }));
     });
 
     socket.on('payment:claimed', (payload: any) => {
@@ -123,7 +133,7 @@ export default function StaffKitchenDashboard() {
   };
 
   const handleRejectPayment = async (orderId: string) => {
-    const reason = prompt('Reason for rejecting payment (e.g. UPI money not received):');
+    const reason = prompt('Reason for rejecting payment (e.g. Money not received):');
     if (!reason) return;
     try {
       await api.post(`/staff/orders/${orderId}/reject-payment`, { reason });
@@ -157,6 +167,33 @@ export default function StaffKitchenDashboard() {
       await fetchActiveOrders();
     } catch (err: any) {
       alert(err.message || 'Failed to complete order');
+    }
+  };
+
+  // Kitchen Quick Alerts
+  const handleSendAlert = async (
+    orderId: string,
+    type: 'CALL_TO_COUNTER' | 'DELAY' | 'OUT_OF_STOCK' | 'CUSTOM',
+    defaultMsg: string
+  ) => {
+    const message = prompt('Student Alert Message:', defaultMsg);
+    if (!message) return;
+
+    try {
+      await api.post(`/staff/orders/${orderId}/alert`, { type, message });
+      alert(`Alert sent to student phone!`);
+    } catch (err: any) {
+      alert(err.message || 'Failed to send alert');
+    }
+  };
+
+  const handleWhatsAppDailyReport = async () => {
+    try {
+      const res = await api.get('/staff/daily-report');
+      const text = encodeURIComponent(res.data.data.reportText);
+      window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    } catch (err: any) {
+      alert('Failed to generate WhatsApp report');
     }
   };
 
@@ -219,12 +256,22 @@ export default function StaffKitchenDashboard() {
               </span>
             </div>
             <p className="text-xs text-gray-500">
-              Welcome back, <strong className="text-gray-800">{user.name}</strong> • Quick Touch Orders Screen
+              Welcome, <strong className="text-gray-800">{user.name}</strong> • Quick Touch Orders Screen
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Daily WhatsApp Summary Button */}
+          <button
+            onClick={handleWhatsAppDailyReport}
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3.5 py-2 rounded-2xl text-xs shadow-md transition"
+            title="Export 24h Daily WhatsApp Summary"
+          >
+            <MessageCircle className="w-4 h-4" />
+            <span>24h WhatsApp Report</span>
+          </button>
+
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-extrabold border transition ${
@@ -273,8 +320,11 @@ export default function StaffKitchenDashboard() {
           <div className="text-2xl font-black text-emerald-600 mt-0.5">{summary.ready || 0}</div>
         </div>
         <div className="bg-white p-4 rounded-3xl border border-orange-100 shadow-sm">
-          <div className="text-[11px] font-bold text-gray-400 uppercase">Today's Total Sales</div>
+          <div className="text-[11px] font-bold text-gray-400 uppercase">Today's Sales</div>
           <div className="text-2xl font-black text-gray-900 mt-0.5">₹{summary.todaySales || 0}</div>
+          <div className="text-[10px] text-gray-400 font-semibold mt-0.5">
+            UPI: ₹{summary.upiSales || 0} • Cash: ₹{summary.cashSales || 0}
+          </div>
         </div>
       </div>
 
@@ -282,7 +332,7 @@ export default function StaffKitchenDashboard() {
       <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none">
         {[
           { id: 'ALL', label: `All Orders (${orders.length})` },
-          { id: 'PAYMENT', label: `Needs UPI Verification (${orders.filter(o => ['PENDING_PAYMENT', 'PAYMENT_VERIFYING'].includes(o.status)).length})` },
+          { id: 'PAYMENT', label: `Needs Verification (${orders.filter(o => ['PENDING_PAYMENT', 'PAYMENT_VERIFYING'].includes(o.status)).length})` },
           { id: 'PREPARING', label: `Cooking (${orders.filter(o => ['ACCEPTED', 'PREPARING'].includes(o.status)).length})` },
           { id: 'READY', label: `Ready (${orders.filter(o => o.status === 'READY').length})` },
         ].map((tab) => (
@@ -310,10 +360,12 @@ export default function StaffKitchenDashboard() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredOrders.map((order) => {
+            const isPending = order.status === 'PENDING_PAYMENT';
             const isVerifying = order.status === 'PAYMENT_VERIFYING';
             const isAccepted = order.status === 'ACCEPTED';
             const isPreparing = order.status === 'PREPARING';
             const isReady = order.status === 'READY';
+            const isCash = order.payment?.method === 'CASH';
 
             return (
               <div
@@ -323,7 +375,9 @@ export default function StaffKitchenDashboard() {
                     ? 'border-amber-400 bg-amber-50/20 shadow-amber-500/10'
                     : isReady
                     ? 'border-emerald-400 bg-emerald-50/20'
-                    : 'border-orange-200'
+                    : isPreparing
+                    ? 'border-orange-400'
+                    : 'border-gray-200'
                 }`}
               >
                 <div>
@@ -349,7 +403,7 @@ export default function StaffKitchenDashboard() {
                       alt={order.userId?.name || 'Student'}
                       className="w-12 h-12 rounded-full border-2 border-orange-400 object-cover shrink-0"
                     />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="text-xs font-extrabold text-gray-900 truncate">
                         {order.userId?.name || 'Student'}
                       </div>
@@ -358,7 +412,45 @@ export default function StaffKitchenDashboard() {
                         <span>+91 {order.userId?.phone || 'No phone'}</span>
                       </div>
                     </div>
+
+                    {/* Payment Mode Badge */}
+                    <div className="text-right">
+                      {isCash ? (
+                        <div className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-md">
+                          <Banknote className="w-3 h-3" />
+                          <span>CASH</span>
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-[10px] font-black px-2 py-0.5 rounded-md">
+                          <Smartphone className="w-3 h-3" />
+                          <span>UPI</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Cash Proof Image thumbnail */}
+                  {order.payment?.proofImage && (
+                    <div className="mb-3 p-2 bg-emerald-50 rounded-2xl border border-emerald-200 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={order.payment.proofImage}
+                          alt="Proof"
+                          className="w-10 h-10 rounded-xl object-cover border border-emerald-400"
+                        />
+                        <div className="text-[11px] font-bold text-emerald-900">
+                          Cash Proof Attached
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setSelectedProofImg(order.payment.proofImage)}
+                        className="text-xs font-black text-emerald-700 bg-white px-2.5 py-1 rounded-xl shadow-xs border border-emerald-300 hover:bg-emerald-100 transition flex items-center gap-1"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>View Photo</span>
+                      </button>
+                    </div>
+                  )}
 
                   {/* Order Items */}
                   <div className="space-y-1.5 mb-4">
@@ -384,18 +476,18 @@ export default function StaffKitchenDashboard() {
                   </div>
                 </div>
 
-                {/* Action Pipeline Buttons */}
-                <div className="pt-3 border-t border-gray-100">
-                  {order.status === 'PENDING_PAYMENT' && (
-                    <div className="text-center text-xs font-bold text-gray-400 py-2">
-                      Waiting for student to pay via UPI...
+                {/* Action Pipeline & Quick Kitchen Alerts */}
+                <div className="pt-3 border-t border-gray-100 space-y-2">
+                  {isPending && (
+                    <div className="text-center text-xs font-bold text-gray-400 py-1">
+                      Waiting for student payment claim...
                     </div>
                   )}
 
                   {isVerifying && (
                     <div className="space-y-2">
-                      <div className="text-[11px] font-extrabold text-amber-800 text-center bg-amber-100/60 p-2 rounded-xl">
-                        Student claimed ₹{order.total} UPI payment
+                      <div className="text-[11px] font-extrabold text-amber-900 text-center bg-amber-100/70 p-2 rounded-xl">
+                        Student claimed {isCash ? '💵 Cash' : '📱 UPI'} payment of ₹{order.total}
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <button
@@ -417,7 +509,7 @@ export default function StaffKitchenDashboard() {
                   {isAccepted && (
                     <button
                       onClick={() => handleStartPreparing(order._id)}
-                      className="w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-black text-xs rounded-2xl shadow-lg transition active:scale-95 flex items-center justify-center gap-1.5"
+                      className="w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 text-white font-black text-xs rounded-2xl shadow-lg transition active:scale-95 flex items-center justify-center gap-1.5"
                     >
                       <ChefHat className="w-4 h-4" />
                       <span>Start Cooking</span>
@@ -443,10 +535,87 @@ export default function StaffKitchenDashboard() {
                       <span>Hand Over to Student</span>
                     </button>
                   )}
+
+                  {/* Kitchen Quick Callouts & Alerts Bar */}
+                  <div className="flex items-center gap-1 pt-1 overflow-x-auto scrollbar-none">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleSendAlert(
+                          order._id,
+                          'CALL_TO_COUNTER',
+                          `🔔 Token #${order.orderNumber} TAIYAAR HAI! Counter par aakar le jayein!`
+                        )
+                      }
+                      className="flex-1 py-1.5 px-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-[10px] font-black border border-purple-200 whitespace-nowrap flex items-center justify-center gap-1 transition"
+                      title="Send Loud Alert on Student Phone"
+                    >
+                      <Megaphone className="w-3 h-3 text-purple-600" />
+                      <span>आजा खाना लेने</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleSendAlert(
+                          order._id,
+                          'DELAY',
+                          `⏳ Token #${order.orderNumber}: Thoda rush hai, 5-7 min extra lagenge.`
+                        )
+                      }
+                      className="py-1.5 px-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-xl text-[10px] font-black border border-amber-200 whitespace-nowrap flex items-center gap-1 transition"
+                    >
+                      <Hourglass className="w-3 h-3" />
+                      <span>+5 Min</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleSendAlert(
+                          order._id,
+                          'OUT_OF_STOCK',
+                          `⚠️ Token #${order.orderNumber}: Item khatam ho gaya hai. Counter par aakar swap ya refund lein.`
+                        )
+                      }
+                      className="py-1.5 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-[10px] font-black border border-rose-200 whitespace-nowrap flex items-center gap-1 transition"
+                    >
+                      <AlertTriangle className="w-3 h-3" />
+                      <span>Supply No More</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Cash Proof Modal View */}
+      {selectedProofImg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="bg-white rounded-3xl p-4 max-w-sm w-full text-center relative shadow-2xl">
+            <button
+              onClick={() => setSelectedProofImg(null)}
+              className="absolute top-3 right-3 p-2 bg-gray-100 rounded-full hover:bg-gray-200"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <h3 className="font-extrabold text-sm text-gray-900 mb-3">
+              💵 Student Cash Proof Photo
+            </h3>
+            <img
+              src={selectedProofImg}
+              alt="Cash Proof"
+              className="w-full h-72 object-contain rounded-2xl bg-black/5 mb-3"
+            />
+            <button
+              onClick={() => setSelectedProofImg(null)}
+              className="w-full py-2.5 bg-gray-900 text-white font-bold rounded-xl text-xs"
+            >
+              Close Preview
+            </button>
+          </div>
         </div>
       )}
     </div>

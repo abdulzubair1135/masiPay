@@ -10,6 +10,7 @@ export interface IPayment extends Document {
   method: PaymentMethod;
   status: PaymentStatus;
   transactionReference?: string;
+  proofImage?: string; // Cash photo proof or UPI screenshot
   verifiedById?: Types.ObjectId;
   verifiedAt?: Date;
   rejectionReason?: string;
@@ -29,6 +30,7 @@ const paymentSchema = new Schema<IPayment>(
       default: 'PENDING',
     },
     transactionReference: { type: String, trim: true },
+    proofImage: { type: String },
     verifiedById: { type: Schema.Types.ObjectId, ref: 'User' },
     verifiedAt: { type: Date },
     rejectionReason: { type: String, trim: true },

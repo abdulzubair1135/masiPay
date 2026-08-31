@@ -6,12 +6,41 @@ import { Order } from '../models/Order.js';
 import { Payment } from '../models/Payment.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
 import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
+import { emitToOrder, emitToUser, SocketEvents } from '../socket/socket.events.js';
 
 export class StaffController {
   static async getActiveOrders(req: AuthenticatedRequest, res: Response) {
     try {
-      const orders = await OrderService.getStaffActiveOrders();
-      sendSuccess(res, orders, 'Active kitchen orders fetched');
+      const orders = await Order.find({
+        status: {
+          $in: ['PENDING_PAYMENT', 'PAYMENT_VERIFYING', 'ACCEPTED', 'PREPARING', 'READY'],
+        },
+      })
+        .populate('userId', 'name rollNumber profileImage phone')
+        .populate('tableId', 'tableNumber')
+        .sort({ createdAt: -1 });
+
+      // Attach payment details (including proofImage and method)
+      const orderIds = orders.map((o) => o._id);
+      const payments = await Payment.find({ orderId: { $in: orderIds } });
+      const paymentMap = new Map(payments.map((p) => [p.orderId.toString(), p]));
+
+      const enriched = orders.map((o) => {
+        const p = paymentMap.get(o._id.toString());
+        return {
+          ...o.toObject(),
+          payment: p
+            ? {
+                method: p.method,
+                status: p.status,
+                transactionReference: p.transactionReference,
+                proofImage: p.proofImage,
+              }
+            : null,
+        };
+      });
+
+      sendSuccess(res, enriched, 'Active kitchen orders fetched');
     } catch (error: any) {
       sendError(res, error.message, 500);
     }
@@ -94,9 +123,41 @@ export class StaffController {
       const result = await PaymentService.rejectPayment(
         id,
         req.user!,
-        reason || 'Payment not found in UPI'
+        reason || 'Payment not found in UPI / Cash not received'
       );
       sendSuccess(res, result, 'Payment rejected');
+    } catch (error: any) {
+      sendError(res, error.message, 400);
+    }
+  }
+
+  static async sendKitchenAlert(req: AuthenticatedRequest, res: Response) {
+    try {
+      const id = req.params.id as string;
+      const { type, message } = req.body;
+
+      const order = await Order.findById(id).populate('userId', 'name phone');
+      if (!order) throw new Error('Order not found');
+
+      order.kitchenAlert = {
+        type,
+        message,
+        sentAt: new Date(),
+      };
+      await order.save();
+
+      const payload = {
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        type,
+        message,
+        sentAt: new Date(),
+      };
+
+      emitToOrder(order._id.toString(), 'kitchen:alert', payload);
+      emitToUser(order.userId._id.toString(), 'kitchen:alert', payload);
+
+      sendSuccess(res, payload, `Alert "${type}" sent to student successfully`);
     } catch (error: any) {
       sendError(res, error.message, 400);
     }
@@ -127,6 +188,8 @@ export class StaffController {
       ]);
 
       const todaySales = payments.reduce((acc, p) => acc + p.amount, 0);
+      const cashSales = payments.filter((p) => p.method === 'CASH').reduce((acc, p) => acc + p.amount, 0);
+      const upiSales = payments.filter((p) => p.method !== 'CASH').reduce((acc, p) => acc + p.amount, 0);
 
       sendSuccess(res, {
         newOrders,
@@ -135,7 +198,39 @@ export class StaffController {
         completed,
         cancelled,
         todaySales,
+        cashSales,
+        upiSales,
+        totalVerifiedPayments: payments.length,
       }, 'Summary fetched');
+    } catch (error: any) {
+      sendError(res, error.message, 500);
+    }
+  }
+
+  static async getDailyWhatsAppReport(req: AuthenticatedRequest, res: Response) {
+    try {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const [orders, payments] = await Promise.all([
+        Order.find({ createdAt: { $gte: startOfDay } }).populate('userId', 'name phone'),
+        Payment.find({ status: 'VERIFIED', createdAt: { $gte: startOfDay } }),
+      ]);
+
+      const totalSales = payments.reduce((acc, p) => acc + p.amount, 0);
+      const cashSales = payments.filter((p) => p.method === 'CASH').reduce((acc, p) => acc + p.amount, 0);
+      const upiSales = payments.filter((p) => p.method !== 'CASH').reduce((acc, p) => acc + p.amount, 0);
+      const deliveredCount = orders.filter((o) => ['DELIVERED', 'COMPLETED'].includes(o.status)).length;
+
+      const dateStr = new Date().toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+
+      const reportText = `📊 *MASICANTEEN DAILY SALES REPORT*\n📅 *Date:* ${dateStr}\n-----------------------------------\n💰 *Total Revenue:* ₹${totalSales}\n📱 *UPI Online:* ₹${upiSales}\n💵 *Cash at Counter:* ₹${cashSales}\n\n📦 *Total Orders Placed:* ${orders.length}\n✅ *Tokens Delivered:* ${deliveredCount}\n❌ *Cancelled:* ${orders.filter((o) => o.status === 'CANCELLED').length}\n-----------------------------------\n_Generated automatically from MasiCanteen Kitchen System_`;
+
+      sendSuccess(res, { reportText, totalSales, cashSales, upiSales, ordersCount: orders.length }, 'Daily report generated');
     } catch (error: any) {
       sendError(res, error.message, 500);
     }
