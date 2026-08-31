@@ -7,9 +7,8 @@ import { reconnectSocketWithToken } from '../lib/socket';
 export interface UserProfile {
   _id: string;
   name: string;
-  email?: string;
   phone?: string;
-  rollNumber?: string;
+  email?: string;
   profileImage?: string;
   language: 'en' | 'hi' | 'gu';
   role: 'SUPER_ADMIN' | 'STAFF' | 'STUDENT';
@@ -20,14 +19,12 @@ interface AuthContextType {
   user: UserProfile | null;
   token: string | null;
   loading: boolean;
-  loginStudent: (rollNumberOrPhone: string) => Promise<UserProfile>;
+  loginStudent: (phone: string) => Promise<UserProfile>;
   registerStudent: (data: {
     name: string;
-    rollNumber: string;
-    phone?: string;
-    email?: string;
-    language?: string;
+    phone: string;
     profileImage?: string;
+    language?: string;
   }) => Promise<UserProfile>;
   loginStaff: (emailOrPhone: string, password: string) => Promise<UserProfile>;
   logout: () => void;
@@ -41,45 +38,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  const checkUser = async () => {
+  // Initialize from localStorage immediately
+  useEffect(() => {
     try {
       const savedToken = localStorage.getItem('masi_token');
+      const savedUserStr = localStorage.getItem('masi_user');
+
       if (savedToken) {
         setToken(savedToken);
-        const res = await api.get('/auth/me');
-        setUser(res.data.data.user);
+        if (savedUserStr) {
+          try {
+            setUser(JSON.parse(savedUserStr));
+          } catch (e) {}
+        }
         reconnectSocketWithToken(savedToken);
+
+        // Verify token in background without blocking or resetting session prematurely
+        api.get('/auth/me')
+          .then((res) => {
+            const fetchedUser = res.data.data.user;
+            setUser(fetchedUser);
+            localStorage.setItem('masi_user', JSON.stringify(fetchedUser));
+          })
+          .catch((err) => {
+            if (err.response?.status === 401) {
+              console.warn('Session expired, logging out');
+              localStorage.removeItem('masi_token');
+              localStorage.removeItem('masi_user');
+              setUser(null);
+              setToken(null);
+            }
+          })
+          .finally(() => {
+            setLoading(false);
+          });
+        return;
       }
     } catch (err) {
-      console.warn('Session expired or invalid:', err);
-      localStorage.removeItem('masi_token');
-      setUser(null);
-      setToken(null);
-    } finally {
-      setLoading(false);
+      console.warn('Error reading auth state:', err);
     }
-  };
-
-  useEffect(() => {
-    checkUser();
+    setLoading(false);
   }, []);
 
   const loginStudent = async (phone: string): Promise<UserProfile> => {
     const res = await api.post('/auth/login/student', { phone: phone.trim() });
     const { token: receivedToken, user: receivedUser } = res.data.data;
+
     localStorage.setItem('masi_token', receivedToken);
+    localStorage.setItem('masi_user', JSON.stringify(receivedUser));
     setToken(receivedToken);
     setUser(receivedUser);
+    setLoading(false);
     reconnectSocketWithToken(receivedToken);
     return receivedUser;
   };
 
-  const registerStudent = async (data: any): Promise<UserProfile> => {
+  const registerStudent = async (data: {
+    name: string;
+    phone: string;
+    profileImage?: string;
+    language?: string;
+  }): Promise<UserProfile> => {
     const res = await api.post('/auth/register/student', data);
     const { token: receivedToken, user: receivedUser } = res.data.data;
+
     localStorage.setItem('masi_token', receivedToken);
+    localStorage.setItem('masi_user', JSON.stringify(receivedUser));
     setToken(receivedToken);
     setUser(receivedUser);
+    setLoading(false);
     reconnectSocketWithToken(receivedToken);
     return receivedUser;
   };
@@ -87,22 +114,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginStaff = async (emailOrPhone: string, password: string): Promise<UserProfile> => {
     const res = await api.post('/auth/login/staff', { emailOrPhone, password });
     const { token: receivedToken, user: receivedUser } = res.data.data;
+
     localStorage.setItem('masi_token', receivedToken);
+    localStorage.setItem('masi_user', JSON.stringify(receivedUser));
     setToken(receivedToken);
     setUser(receivedUser);
+    setLoading(false);
     reconnectSocketWithToken(receivedToken);
     return receivedUser;
   };
 
   const logout = () => {
     localStorage.removeItem('masi_token');
+    localStorage.removeItem('masi_user');
     setToken(null);
     setUser(null);
   };
 
   const updateUser = (updated: Partial<UserProfile>) => {
     if (user) {
-      setUser({ ...user, ...updated });
+      const merged = { ...user, ...updated };
+      setUser(merged);
+      localStorage.setItem('masi_user', JSON.stringify(merged));
     }
   };
 

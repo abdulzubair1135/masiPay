@@ -14,26 +14,28 @@ export class OrderService {
    */
   static async createOrder(data: {
     userId: string;
-    tableToken: string;
+    tableToken?: string;
     items: { menuItemId: string; quantity: number; specialInstruction?: string }[];
     notes?: string;
     idempotencyKey?: string;
   }) {
     if (data.idempotencyKey) {
       const existing = await Order.findOne({ idempotencyKey: data.idempotencyKey })
-        .populate('userId', 'name rollNumber profileImage')
-        .populate('tableId', 'tableNumber');
+        .populate('userId', 'name profileImage phone');
       if (existing) {
         return existing;
       }
     }
 
-    const table = await Table.findOne({ secureToken: data.tableToken });
-    if (!table) {
-      throw new Error('Invalid table QR code');
-    }
-    if (table.status === 'DISABLED') {
-      throw new Error(`Table ${table.tableNumber} is currently disabled`);
+    let tableId: any = undefined;
+    let tableNumber = 'Direct Token';
+
+    if (data.tableToken) {
+      const table = await Table.findOne({ secureToken: data.tableToken });
+      if (table && table.status !== 'DISABLED') {
+        tableId = table._id;
+        tableNumber = table.tableNumber;
+      }
     }
 
     // Fetch and validate menu items from database to compute authoritative prices
@@ -94,8 +96,8 @@ export class OrderService {
     const order = await Order.create({
       orderNumber,
       userId: data.userId,
-      tableId: table._id,
-      tableNumber: table.tableNumber,
+      tableId: tableId || undefined,
+      tableNumber: tableNumber || `Token #${orderNumber}`,
       idempotencyKey: data.idempotencyKey,
       items: embeddedItems,
       subtotal,

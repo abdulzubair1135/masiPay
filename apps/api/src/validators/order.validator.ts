@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 export const createOrderSchema = z.object({
-  tableToken: z.string().min(1, 'Table token is required'),
+  tableToken: z.string().optional(),
+  tableNumber: z.string().optional(),
   items: z
     .array(
       z.object({

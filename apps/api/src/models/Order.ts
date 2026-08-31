@@ -56,8 +56,8 @@ const orderSchema = new Schema<IOrder>(
   {
     orderNumber: { type: Number, required: true, unique: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    tableId: { type: Schema.Types.ObjectId, ref: 'Table', required: true },
-    tableNumber: { type: String, required: true },
+    tableId: { type: Schema.Types.ObjectId, ref: 'Table' },
+    tableNumber: { type: String, default: 'Counter' },
     idempotencyKey: { type: String, unique: true, sparse: true },
     items: [orderItemSchema],
     subtotal: { type: Number, required: true, min: 0 },

@@ -1,32 +1,31 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { api } from '../../../lib/api';
 import { useAuth } from '../../../context/AuthContext';
+import { api } from '../../../lib/api';
 import { getSocket } from '../../../lib/socket';
 import { playOrderBellSound } from '../../../lib/sound';
 import { OrderTimerBadge } from '../../../components/OrderTimerBadge';
 import {
   ChefHat,
-  MapPin,
+  Bell,
+  BellOff,
+  CheckCircle2,
   Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Volume2,
+  QrCode,
   DollarSign,
-  ShoppingBag,
-  History,
+  AlertCircle,
+  XCircle,
   LogOut,
-  Sparkles,
-  Flame,
+  RefreshCw,
+  Phone,
+  ShieldAlert,
 } from 'lucide-react';
 
 export default function StaffKitchenDashboard() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, loading: authLoading } = useAuth();
 
   const [orders, setOrders] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>({
@@ -57,8 +56,9 @@ export default function StaffKitchenDashboard() {
   };
 
   useEffect(() => {
+    if (authLoading) return;
+
     if (!user || user.role === 'STUDENT') {
-      router.push('/login?redirect=/staff/dashboard');
       return;
     }
 
@@ -95,320 +95,360 @@ export default function StaffKitchenDashboard() {
       }
     });
 
+    socket.on('payment:verified', (payload: any) => {
+      setOrders((prev) =>
+        prev.map((o) =>
+          o._id === payload.orderId ? { ...o, status: 'ACCEPTED' } : o
+        )
+      );
+    });
+
     return () => {
+      socket.emit('leave:room', 'staff-room');
       socket.off('order:created');
       socket.off('payment:claimed');
       socket.off('order:status_changed');
+      socket.off('payment:verified');
     };
-  }, [user, soundEnabled]);
+  }, [user, authLoading, soundEnabled]);
 
   // Actions
   const handleVerifyPayment = async (orderId: string) => {
     try {
-      await api.post(`/staff/payments/${orderId}/verify`, {});
-      fetchActiveOrders();
+      await api.post(`/staff/orders/${orderId}/verify-payment`);
+      await fetchActiveOrders();
     } catch (err: any) {
-      alert(err.message || 'Verification failed');
+      alert(err.message || 'Payment verification failed');
     }
   };
 
   const handleRejectPayment = async (orderId: string) => {
-    const reason = prompt('Why is payment rejected?', 'Payment not received in UPI');
+    const reason = prompt('Reason for rejecting payment (e.g. UPI money not received):');
     if (!reason) return;
-
     try {
-      await api.post(`/staff/payments/${orderId}/reject`, { reason });
-      fetchActiveOrders();
+      await api.post(`/staff/orders/${orderId}/reject-payment`, { reason });
+      await fetchActiveOrders();
     } catch (err: any) {
-      alert(err.message || 'Reject failed');
+      alert(err.message || 'Payment rejection failed');
     }
   };
 
-  const handleUpdateStatus = async (orderId: string, action: 'accept' | 'preparing' | 'ready' | 'delivered') => {
+  const handleStartPreparing = async (orderId: string) => {
     try {
-      await api.post(`/staff/orders/${orderId}/${action}`, {});
-      fetchActiveOrders();
+      await api.post(`/staff/orders/${orderId}/preparing`);
+      await fetchActiveOrders();
     } catch (err: any) {
-      alert(err.message || 'Action failed');
+      alert(err.message || 'Failed to update status');
     }
   };
 
-  const handleCancelOrder = async (orderId: string) => {
-    const reason = prompt('Why are you cancelling this order?', 'Item unavailable');
-    if (!reason) return;
-
+  const handleMarkReady = async (orderId: string) => {
     try {
-      await api.post(`/staff/orders/${orderId}/cancel`, { reason });
-      fetchActiveOrders();
+      await api.post(`/staff/orders/${orderId}/ready`);
+      await fetchActiveOrders();
     } catch (err: any) {
-      alert(err.message || 'Cancel failed');
+      alert(err.message || 'Failed to update status');
     }
   };
 
+  const handleMarkDelivered = async (orderId: string) => {
+    try {
+      await api.post(`/staff/orders/${orderId}/delivered`);
+      await fetchActiveOrders();
+    } catch (err: any) {
+      alert(err.message || 'Failed to complete order');
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center">
+        <div className="w-12 h-12 border-4 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="mt-4 font-bold text-gray-700">Verifying session...</div>
+      </div>
+    );
+  }
+
+  if (!user || user.role === 'STUDENT') {
+    return (
+      <div className="max-w-md mx-auto px-4 py-16 text-center">
+        <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto mb-4">
+          <ShieldAlert className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-extrabold text-gray-900 mb-1">Masi Kitchen Staff Only</h2>
+        <p className="text-xs text-gray-600 mb-6">
+          This portal is reserved for Canteen Masi and Kitchen Staff to manage live orders and verify UPI payments.
+        </p>
+        <button
+          onClick={() => {
+            logout();
+            router.push('/login');
+          }}
+          className="bg-gray-900 hover:bg-black text-white font-extrabold px-6 py-3 rounded-2xl shadow-md transition text-xs"
+        >
+          Login as Staff / Masi
+        </button>
+      </div>
+    );
+  }
+
+  // Filter orders by tab
   const filteredOrders = orders.filter((o) => {
-    if (activeTab === 'PAYMENT') return o.status === 'PAYMENT_VERIFYING' || o.status === 'PENDING_PAYMENT';
-    if (activeTab === 'PREPARING') return o.status === 'PREPARING' || o.status === 'ACCEPTED';
+    if (activeTab === 'PAYMENT') return ['PENDING_PAYMENT', 'PAYMENT_VERIFYING'].includes(o.status);
+    if (activeTab === 'PREPARING') return ['ACCEPTED', 'PREPARING'].includes(o.status);
     if (activeTab === 'READY') return o.status === 'READY';
     return true;
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 pb-20">
-      {/* Staff Kitchen Header Bar */}
-      <header className="bg-gray-900 text-white sticky top-0 z-40 px-4 py-3 shadow-md">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-orange-600 flex items-center justify-center text-white shadow-md">
-              <ChefHat className="w-6 h-6" />
+    <div className="max-w-6xl mx-auto px-4 py-4 pb-20">
+      {/* Top Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-orange-100 shadow-sm mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-600 to-orange-500 text-white flex items-center justify-center shadow-lg shadow-orange-500/20">
+            <ChefHat className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-black text-gray-900 tracking-tight">
+                Masi Kitchen Order Screen
+              </h1>
+              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                LIVE
+              </span>
             </div>
-            <div>
-              <div className="font-extrabold text-base tracking-tight flex items-center gap-2">
-                <span>Masi Kitchen Dashboard</span>
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              </div>
-              <div className="text-[11px] text-gray-400 font-medium">
-                Logged in as {user?.name || 'Masi'}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                setSoundEnabled(!soundEnabled);
-                if (!soundEnabled) playOrderBellSound();
-              }}
-              className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
-                soundEnabled ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-400'
-              }`}
-              title="Toggle Sound Bell"
-            >
-              <Volume2 className="w-4 h-4" />
-              <span className="hidden sm:inline">{soundEnabled ? 'Sound ON' : 'Sound OFF'}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                logout();
-                router.push('/login');
-              }}
-              className="p-2 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-xl transition"
-              title="Logout"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Metrics Row */}
-      <div className="max-w-6xl mx-auto px-4 py-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-          <div className="bg-white p-4 rounded-3xl border border-gray-200 shadow-2xs">
-            <div className="text-xs text-gray-500 font-bold uppercase">Pending / New</div>
-            <div className="text-2xl font-black text-amber-600 mt-1">{summary.newOrders}</div>
-          </div>
-
-          <div className="bg-white p-4 rounded-3xl border border-gray-200 shadow-2xs">
-            <div className="text-xs text-gray-500 font-bold uppercase">Preparing 🍳</div>
-            <div className="text-2xl font-black text-orange-600 mt-1">{summary.preparing}</div>
-          </div>
-
-          <div className="bg-white p-4 rounded-3xl border border-gray-200 shadow-2xs">
-            <div className="text-xs text-gray-500 font-bold uppercase">Ready to Serve 🔔</div>
-            <div className="text-2xl font-black text-emerald-600 mt-1">{summary.ready}</div>
-          </div>
-
-          <div className="bg-white p-4 rounded-3xl border border-gray-200 shadow-2xs">
-            <div className="text-xs text-gray-500 font-bold uppercase">Today's Sales 💰</div>
-            <div className="text-2xl font-black text-gray-900 mt-1">₹{summary.todaySales}</div>
+            <p className="text-xs text-gray-500">
+              Welcome back, <strong className="text-gray-800">{user.name}</strong> • Quick Touch Orders Screen
+            </p>
           </div>
         </div>
 
-        {/* Pipeline Filter Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-4 scrollbar-none">
-          {[
-            { key: 'ALL', label: `All Active (${orders.length})` },
-            { key: 'PAYMENT', label: 'Payment Check' },
-            { key: 'PREPARING', label: 'In Kitchen' },
-            { key: 'READY', label: 'Ready for Pickup' },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
-              className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all whitespace-nowrap ${
-                activeTab === tab.key
-                  ? 'bg-gray-900 text-white shadow-md'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-400'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-extrabold border transition ${
+              soundEnabled
+                ? 'bg-orange-50 text-orange-700 border-orange-200'
+                : 'bg-gray-50 text-gray-400 border-gray-200'
+            }`}
+          >
+            {soundEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+            <span>{soundEnabled ? 'Bell On' : 'Muted'}</span>
+          </button>
+
+          <button
+            onClick={fetchActiveOrders}
+            className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3.5 py-2 rounded-2xl text-xs transition"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+
+          <button
+            onClick={() => {
+              logout();
+              router.push('/login');
+            }}
+            className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold px-3.5 py-2 rounded-2xl text-xs transition"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Logout</span>
+          </button>
         </div>
+      </div>
 
-        {/* Kitchen Orders Grid */}
-        {loading ? (
-          <div className="py-16 text-center">
-            <div className="w-10 h-10 border-4 border-orange-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="text-xs font-bold text-gray-600 mt-3">Syncing Kitchen Orders...</p>
-          </div>
-        ) : filteredOrders.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border border-gray-200">
-            <CheckCircle className="w-14 h-14 text-emerald-500 mx-auto mb-3" />
-            <h3 className="text-xl font-extrabold text-gray-900">All Orders Fulfilled! 🎉</h3>
-            <p className="text-xs text-gray-500 mt-1">No pending food items in the queue right now.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredOrders.map((order) => {
-              const isClaimed = order.status === 'PAYMENT_VERIFYING';
-              const isAccepted = order.status === 'ACCEPTED';
-              const isPreparing = order.status === 'PREPARING';
-              const isReady = order.status === 'READY';
+      {/* KPI Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className="bg-white p-4 rounded-3xl border border-orange-100 shadow-sm">
+          <div className="text-[11px] font-bold text-gray-400 uppercase">Incoming Payments</div>
+          <div className="text-2xl font-black text-amber-600 mt-0.5">{summary.newOrders || 0}</div>
+        </div>
+        <div className="bg-white p-4 rounded-3xl border border-orange-100 shadow-sm">
+          <div className="text-[11px] font-bold text-gray-400 uppercase">Cooking Now</div>
+          <div className="text-2xl font-black text-orange-600 mt-0.5">{summary.preparing || 0}</div>
+        </div>
+        <div className="bg-white p-4 rounded-3xl border border-orange-100 shadow-sm">
+          <div className="text-[11px] font-bold text-gray-400 uppercase">Ready For Pickup</div>
+          <div className="text-2xl font-black text-emerald-600 mt-0.5">{summary.ready || 0}</div>
+        </div>
+        <div className="bg-white p-4 rounded-3xl border border-orange-100 shadow-sm">
+          <div className="text-[11px] font-bold text-gray-400 uppercase">Today's Total Sales</div>
+          <div className="text-2xl font-black text-gray-900 mt-0.5">₹{summary.todaySales || 0}</div>
+        </div>
+      </div>
 
-              return (
-                <div
-                  key={order._id}
-                  className={`bg-white rounded-3xl p-5 border-2 shadow-sm flex flex-col justify-between transition-all ${
-                    isClaimed
-                      ? 'border-purple-400 ring-2 ring-purple-400/20 bg-purple-50/20'
-                      : isReady
-                      ? 'border-emerald-400 bg-emerald-50/10'
-                      : 'border-gray-200 hover:border-orange-300'
-                  }`}
-                >
-                  <div>
-                    {/* Card Header: Order #, Table #, Timer */}
-                    <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-                      <div>
-                        <div className="text-xs font-extrabold text-orange-600">
-                          ORDER #{order.orderNumber}
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <MapPin className="w-4 h-4 text-gray-700" />
-                          <span className="text-base font-black text-gray-900">
-                            TABLE {order.tableNumber}
-                          </span>
-                        </div>
+      {/* Filter Tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none">
+        {[
+          { id: 'ALL', label: `All Orders (${orders.length})` },
+          { id: 'PAYMENT', label: `Needs UPI Verification (${orders.filter(o => ['PENDING_PAYMENT', 'PAYMENT_VERIFYING'].includes(o.status)).length})` },
+          { id: 'PREPARING', label: `Cooking (${orders.filter(o => ['ACCEPTED', 'PREPARING'].includes(o.status)).length})` },
+          { id: 'READY', label: `Ready (${orders.filter(o => o.status === 'READY').length})` },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`px-4 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all ${
+              activeTab === tab.id
+                ? 'bg-orange-600 text-white shadow-md shadow-orange-600/20'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Orders Grid */}
+      {filteredOrders.length === 0 ? (
+        <div className="bg-white rounded-3xl p-12 text-center border border-gray-200">
+          <ChefHat className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+          <h3 className="text-base font-extrabold text-gray-700">Kitchen is all clear!</h3>
+          <p className="text-xs text-gray-400 mt-1">No active orders in this view.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredOrders.map((order) => {
+            const isVerifying = order.status === 'PAYMENT_VERIFYING';
+            const isAccepted = order.status === 'ACCEPTED';
+            const isPreparing = order.status === 'PREPARING';
+            const isReady = order.status === 'READY';
+
+            return (
+              <div
+                key={order._id}
+                className={`bg-white rounded-3xl p-5 border-2 shadow-sm flex flex-col justify-between transition-all ${
+                  isVerifying
+                    ? 'border-amber-400 bg-amber-50/20 shadow-amber-500/10'
+                    : isReady
+                    ? 'border-emerald-400 bg-emerald-50/20'
+                    : 'border-orange-200'
+                }`}
+              >
+                <div>
+                  {/* Top Bar: Token Number & Elapsed Timer */}
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div>
+                      <div className="inline-flex items-center gap-1.5 bg-orange-100 text-orange-900 px-3 py-1 rounded-full text-xs font-black">
+                        <QrCode className="w-3.5 h-3.5" />
+                        <span>TOKEN #{order.orderNumber}</span>
                       </div>
-
-                      <OrderTimerBadge createdAt={order.createdAt} />
-                    </div>
-
-                    {/* Student Info */}
-                    <div className="flex items-center gap-2.5 py-3 border-b border-gray-100">
-                      <img
-                        src={order.userId?.profileImage || 'https://api.dicebear.com/7.x/bottts/svg?seed=student'}
-                        alt={order.userId?.name}
-                        className="w-10 h-10 rounded-full border border-gray-200 object-cover"
-                      />
-                      <div>
-                        <div className="text-sm font-extrabold text-gray-900 leading-tight">
-                          {order.userId?.name || 'Guest Student'}
-                        </div>
-                        <div className="text-xs font-bold text-gray-500">
-                          Roll: {order.userId?.rollNumber || 'N/A'}
-                        </div>
+                      <div className="text-[11px] text-gray-500 font-bold mt-1">
+                        Table: {order.tableNumber || 'Token Pickup'}
                       </div>
                     </div>
 
-                    {/* Ordered Items list */}
-                    <div className="py-3 space-y-2">
-                      {order.items.map((it: any, idx: number) => (
-                        <div key={idx} className="bg-gray-50 p-2.5 rounded-2xl">
-                          <div className="flex justify-between items-center text-sm font-black text-gray-900">
-                            <span>{it.itemName}</span>
-                            <span className="bg-white px-2 py-0.5 rounded-lg border text-xs font-extrabold text-orange-600">
-                              × {it.quantity}
-                            </span>
-                          </div>
+                    <OrderTimerBadge startTime={order.createdAt} isCompleted={false} />
+                  </div>
+
+                  {/* Student Info with Live Selfie Photo */}
+                  <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-2xl mb-3 border border-gray-100">
+                    <img
+                      src={order.userId?.profileImage || 'https://api.dicebear.com/7.x/bottts/svg?seed=student'}
+                      alt={order.userId?.name || 'Student'}
+                      className="w-12 h-12 rounded-full border-2 border-orange-400 object-cover shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-xs font-extrabold text-gray-900 truncate">
+                        {order.userId?.name || 'Student'}
+                      </div>
+                      <div className="text-[11px] text-gray-500 flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-orange-600" />
+                        <span>+91 {order.userId?.phone || 'No phone'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Order Items */}
+                  <div className="space-y-1.5 mb-4">
+                    {order.items.map((it: any, idx: number) => (
+                      <div key={idx} className="flex items-start justify-between text-xs py-1 border-b border-gray-50">
+                        <div>
+                          <span className="font-extrabold text-gray-900">{it.itemName}</span>
+                          <span className="text-orange-600 font-black ml-1.5">× {it.quantity}</span>
                           {it.specialInstruction && (
-                            <div className="text-xs text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded-md mt-1">
-                              Note: "{it.specialInstruction}"
+                            <div className="text-[10px] text-rose-600 font-bold">
+                              Note: {it.specialInstruction}
                             </div>
                           )}
                         </div>
-                      ))}
-                    </div>
-
-                    {/* Amount & Status info */}
-                    <div className="flex items-center justify-between py-2 border-t border-gray-100 font-extrabold text-sm text-gray-900">
-                      <span>Total Bill</span>
-                      <span className="text-base text-orange-600">₹{order.total}</span>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
-                    {/* Payment Verification Banner */}
-                    {isClaimed && (
-                      <div className="p-3 bg-purple-100/70 border border-purple-300 rounded-2xl text-center mb-2">
-                        <div className="text-xs font-black text-purple-900 mb-1">
-                          🔔 Student says: "I Paid via UPI"
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleVerifyPayment(order._id)}
-                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-2.5 px-3 rounded-xl shadow-xs transition"
-                          >
-                            ✓ VERIFY ₹{order.total}
-                          </button>
-                          <button
-                            onClick={() => handleRejectPayment(order._id)}
-                            className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold py-2.5 px-3 rounded-xl transition"
-                          >
-                            REJECT
-                          </button>
-                        </div>
+                        <div className="font-bold text-gray-700">₹{it.itemPrice * it.quantity}</div>
                       </div>
-                    )}
+                    ))}
 
-                    {/* Order Progress Buttons */}
-                    {isAccepted ? (
-                      <button
-                        onClick={() => handleUpdateStatus(order._id, 'preparing')}
-                        className="w-full bg-orange-600 hover:bg-orange-700 text-white font-black text-sm py-3 px-4 rounded-2xl shadow-md transition"
-                      >
-                        🍳 START PREPARING
-                      </button>
-                    ) : isPreparing ? (
-                      <button
-                        onClick={() => handleUpdateStatus(order._id, 'ready')}
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm py-3 px-4 rounded-2xl shadow-md transition animate-pulse"
-                      >
-                        🔔 MARK READY (ALERT STUDENT)
-                      </button>
-                    ) : isReady ? (
-                      <button
-                        onClick={() => handleUpdateStatus(order._id, 'delivered')}
-                        className="w-full bg-gray-900 hover:bg-black text-white font-black text-sm py-3 px-4 rounded-2xl shadow-md transition"
-                      >
-                        ✅ MARK DELIVERED
-                      </button>
-                    ) : !isClaimed ? (
-                      <button
-                        onClick={() => handleUpdateStatus(order._id, 'accept')}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-sm py-3 px-4 rounded-2xl shadow-md transition"
-                      >
-                        ACCEPT ORDER
-                      </button>
-                    ) : null}
-
-                    {/* Cancel button */}
-                    <button
-                      onClick={() => handleCancelOrder(order._id)}
-                      className="w-full text-center text-xs font-bold text-gray-400 hover:text-rose-600 py-1 transition"
-                    >
-                      Cancel Order
-                    </button>
+                    <div className="flex items-center justify-between pt-2 font-black text-xs text-gray-900">
+                      <span>Total Amount:</span>
+                      <span className="text-orange-600 font-extrabold text-sm">₹{order.total}</span>
+                    </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+
+                {/* Action Pipeline Buttons */}
+                <div className="pt-3 border-t border-gray-100">
+                  {order.status === 'PENDING_PAYMENT' && (
+                    <div className="text-center text-xs font-bold text-gray-400 py-2">
+                      Waiting for student to pay via UPI...
+                    </div>
+                  )}
+
+                  {isVerifying && (
+                    <div className="space-y-2">
+                      <div className="text-[11px] font-extrabold text-amber-800 text-center bg-amber-100/60 p-2 rounded-xl">
+                        Student claimed ₹{order.total} UPI payment
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => handleRejectPayment(order._id)}
+                          className="py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 font-black text-xs rounded-xl border border-rose-200 transition"
+                        >
+                          Reject
+                        </button>
+                        <button
+                          onClick={() => handleVerifyPayment(order._id)}
+                          className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition"
+                        >
+                          Verify & Accept
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {isAccepted && (
+                    <button
+                      onClick={() => handleStartPreparing(order._id)}
+                      className="w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-black text-xs rounded-2xl shadow-lg transition active:scale-95 flex items-center justify-center gap-1.5"
+                    >
+                      <ChefHat className="w-4 h-4" />
+                      <span>Start Cooking</span>
+                    </button>
+                  )}
+
+                  {isPreparing && (
+                    <button
+                      onClick={() => handleMarkReady(order._id)}
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-2xl shadow-lg transition active:scale-95 flex items-center justify-center gap-1.5"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Mark Ready for Pickup</span>
+                    </button>
+                  )}
+
+                  {isReady && (
+                    <button
+                      onClick={() => handleMarkDelivered(order._id)}
+                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl shadow-lg transition active:scale-95 flex items-center justify-center gap-1.5"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Hand Over to Student</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

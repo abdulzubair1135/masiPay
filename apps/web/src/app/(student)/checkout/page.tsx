@@ -12,17 +12,16 @@ import {
   Plus,
   Minus,
   Trash2,
-  MapPin,
+  QrCode,
   FileText,
   ArrowRight,
-  AlertCircle,
+  Sparkles,
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, table, setTable, updateQuantity, removeItem, updateInstruction, clearCart, subtotal, total } = useCart();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { t } = useLanguage();
 
   const [orderNotes, setOrderNotes] = useState('');
@@ -31,18 +30,15 @@ export default function CheckoutPage() {
   const [createdOrder, setCreatedOrder] = useState<any>(null);
   const [upiModalOpen, setUpiModalOpen] = useState(false);
   const [claimLoading, setClaimLoading] = useState(false);
-  const [availableTables, setAvailableTables] = useState<any[]>([]);
 
   useEffect(() => {
-    async function loadInitial() {
+    async function loadSettings() {
       try {
-        const [tablesRes] = await Promise.all([
-          api.get('/tables'),
-        ]);
-        setAvailableTables(tablesRes.data.data);
+        const res = await api.get('/admin/settings');
+        setCanteenSettings(res.data.data);
       } catch (err) {}
     }
-    loadInitial();
+    loadSettings();
   }, []);
 
   const handlePlaceOrder = async () => {
@@ -53,29 +49,23 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!table?.secureToken) {
-      alert('Please select a Table number first before placing an order!');
-      return;
-    }
-
     try {
       setPlacingOrder(true);
       const payload = {
-        tableToken: table.secureToken,
+        tableToken: table?.secureToken || undefined,
+        tableNumber: table?.tableNumber || undefined,
         items: items.map((i) => ({
           menuItemId: i.menuItemId,
           quantity: i.quantity,
           specialInstruction: i.specialInstruction,
         })),
-        notes: orderNotes,
-        idempotencyKey: `order_${user._id}_${Date.now()}`,
+        notes: orderNotes.trim() || undefined,
       };
 
       const res = await api.post('/orders', payload);
-      const newOrder = res.data.data;
-      setCreatedOrder(newOrder);
+      const order = res.data.data;
+      setCreatedOrder(order);
       setUpiModalOpen(true);
-      clearCart();
     } catch (err: any) {
       alert(err.message || 'Failed to place order. Please try again.');
     } finally {
@@ -83,184 +73,186 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleClaimPaid = async (transactionRef?: string) => {
+  const handlePaymentClaimed = async (transactionRef?: string) => {
     if (!createdOrder) return;
     try {
       setClaimLoading(true);
-      await api.post(`/orders/${createdOrder._id}/payment-claimed`, {
-        transactionReference: transactionRef,
+      await api.post(`/orders/${createdOrder._id}/claim-payment`, {
+        transactionReference: transactionRef || undefined,
       });
-
-      confetti({
-        particleCount: 80,
-        spread: 60,
-        origin: { y: 0.6 },
-      });
-
+      clearCart();
       setUpiModalOpen(false);
       router.push(`/orders/${createdOrder._id}`);
     } catch (err: any) {
-      alert(err.message || 'Failed to submit payment verification.');
+      alert(err.message || 'Failed to submit payment claim');
     } finally {
       setClaimLoading(false);
     }
   };
 
-  if (items.length === 0 && !createdOrder) {
+  if (items.length === 0) {
     return (
       <div className="max-w-md mx-auto px-4 py-16 text-center">
-        <div className="w-20 h-20 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center mx-auto mb-4">
-          <ShoppingBag className="w-10 h-10" />
+        <div className="w-16 h-16 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center mx-auto mb-4">
+          <ShoppingBag className="w-8 h-8" />
         </div>
-        <h2 className="text-2xl font-extrabold text-gray-900 mb-1">Your Cart is Empty</h2>
-        <p className="text-xs text-gray-500 mb-6">
-          Delicious burgers, thalis, and cutting chai are waiting for you!
-        </p>
+        <h2 className="text-xl font-extrabold text-gray-900 mb-1">{t('cartEmpty')}</h2>
+        <p className="text-xs text-gray-500 mb-6">Your tray is empty. Explore tasty snacks and hot meals!</p>
         <button
           onClick={() => router.push('/menu')}
-          className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold px-6 py-3.5 rounded-2xl shadow-lg shadow-orange-600/30 transition"
+          className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold px-6 py-3 rounded-2xl shadow-md transition"
         >
-          Explore Food Menu
+          {t('menu')}
         </button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-md mx-auto px-4 py-4 pb-12">
-      <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight mb-4">
-        {t('yourOrder')}
-      </h1>
+    <div className="max-w-md mx-auto px-4 py-4 pb-28">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+          Review Order
+        </h1>
+        <button
+          onClick={clearCart}
+          className="text-xs font-bold text-rose-600 hover:text-rose-800 transition flex items-center gap-1"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          <span>Clear Tray</span>
+        </button>
+      </div>
 
-      {/* Table Selector Box */}
-      <div className="bg-white rounded-3xl p-4 border border-orange-100 shadow-sm mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center">
-              <MapPin className="w-4 h-4" />
+      {/* Dynamic Token Badge */}
+      <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white p-4 rounded-3xl shadow-sm mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
+            <QrCode className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-orange-100 uppercase tracking-wider">
+              Self-Pickup Token
             </div>
-            <div>
-              <div className="text-xs text-gray-500 font-bold">{t('table')}</div>
-              <div className="text-sm font-extrabold text-gray-900">
-                {table?.tableNumber ? `Table ${table.tableNumber}` : 'No Table Selected'}
-              </div>
+            <div className="text-sm font-extrabold">
+              Personal Dynamic Token QR will be generated
             </div>
           </div>
-
-          <select
-            value={table?.secureToken || ''}
-            onChange={(e) => {
-              const selected = availableTables.find((t) => t.secureToken === e.target.value);
-              if (selected) {
-                setTable({
-                  tableId: selected._id,
-                  tableNumber: selected.tableNumber,
-                  secureToken: selected.secureToken,
-                });
-              }
-            }}
-            className="text-xs font-bold bg-orange-50 text-orange-700 px-3 py-2 rounded-xl border border-orange-200 focus:outline-none"
-          >
-            <option value="" disabled>
-              Select Table
-            </option>
-            {availableTables.map((t) => (
-              <option key={t._id} value={t.secureToken}>
-                Table {t.tableNumber}
-              </option>
-            ))}
-          </select>
         </div>
       </div>
 
-      {/* Cart Items List */}
-      <div className="bg-white rounded-3xl p-4 border border-orange-100 shadow-sm mb-4 divide-y divide-gray-100">
-        {items.map((item) => (
-          <div key={item.menuItemId} className="py-3 first:pt-0 last:pb-0">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      item.isVeg ? 'bg-emerald-600' : 'bg-rose-600'
+      {/* Items List */}
+      <div className="bg-white rounded-3xl p-4 border border-orange-100 shadow-sm mb-4 space-y-4">
+        <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">
+          Ordered Items ({items.length})
+        </h2>
+
+        <div className="divide-y divide-gray-100">
+          {items.map((item) => (
+            <div key={item.menuItemId} className="py-3 first:pt-0 last:pb-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center ${
+                      item.isVeg ? 'border-emerald-600' : 'border-rose-600'
                     }`}
-                  />
-                  <h4 className="font-extrabold text-sm text-gray-900">{item.name}</h4>
+                  >
+                    <div
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        item.isVeg ? 'bg-emerald-600' : 'bg-rose-600'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-sm text-gray-900 leading-snug">
+                      {item.itemName}
+                    </h3>
+                    <div className="text-xs text-orange-600 font-bold">
+                      ₹{item.price} each
+                    </div>
+                  </div>
                 </div>
-                <div className="text-xs font-bold text-gray-700 mt-0.5">
-                  ₹{item.price} × {item.quantity} = ₹{item.price * item.quantity}
+
+                <div className="flex items-center gap-2 bg-orange-50 p-1 rounded-xl">
+                  <button
+                    onClick={() => updateQuantity(item.menuItemId, item.quantity - 1)}
+                    className="w-7 h-7 rounded-lg bg-white text-orange-700 flex items-center justify-center shadow-xs hover:bg-orange-100 transition active:scale-90"
+                  >
+                    {item.quantity === 1 ? <Trash2 className="w-3.5 h-3.5 text-rose-600" /> : <Minus className="w-3.5 h-3.5" />}
+                  </button>
+                  <span className="font-extrabold text-xs text-orange-950 w-4 text-center">
+                    {item.quantity}
+                  </span>
+                  <button
+                    onClick={() => updateQuantity(item.menuItemId, item.quantity + 1)}
+                    className="w-7 h-7 rounded-lg bg-white text-orange-700 flex items-center justify-center shadow-xs hover:bg-orange-100 transition active:scale-90"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
 
-              {/* Quantity Controllers */}
-              <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-2 py-1">
-                <button
-                  onClick={() => updateQuantity(item.menuItemId, item.quantity - 1)}
-                  className="w-6 h-6 rounded-lg bg-white text-orange-600 flex items-center justify-center font-bold shadow-2xs"
-                >
-                  <Minus className="w-3 h-3" />
-                </button>
-                <span className="font-extrabold text-xs text-orange-950 w-4 text-center">
-                  {item.quantity}
-                </span>
-                <button
-                  onClick={() => updateQuantity(item.menuItemId, item.quantity + 1)}
-                  className="w-6 h-6 rounded-lg bg-orange-600 text-white flex items-center justify-center font-bold shadow-2xs"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
-              </div>
+              {/* Special instruction */}
+              <input
+                type="text"
+                placeholder="Special notes (e.g. less spicy, no onion)..."
+                value={item.specialInstruction || ''}
+                onChange={(e) => updateInstruction(item.menuItemId, e.target.value)}
+                className="w-full mt-2 text-xs bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200 focus:outline-hidden focus:border-orange-400"
+              />
             </div>
-
-            {/* Special Instructions */}
-            <input
-              type="text"
-              placeholder={t('specialInstruction')}
-              value={item.specialInstruction || ''}
-              onChange={(e) => updateInstruction(item.menuItemId, e.target.value)}
-              className="w-full mt-2 px-3 py-1.5 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-orange-400"
-            />
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      {/* Bill Details */}
-      <div className="bg-white rounded-3xl p-5 border border-orange-100 shadow-sm mb-5 space-y-2">
-        <div className="flex justify-between text-xs text-gray-600 font-medium">
+      {/* Bill Breakdown */}
+      <div className="bg-white rounded-3xl p-5 border border-orange-100 shadow-sm mb-6 space-y-2">
+        <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-wider mb-2">
+          Bill Summary
+        </h2>
+        <div className="flex items-center justify-between text-xs text-gray-600">
           <span>{t('subtotal')}</span>
-          <span>₹{subtotal}</span>
+          <span className="font-bold">₹{subtotal.toFixed(2)}</span>
         </div>
-        <div className="flex justify-between text-xs text-gray-600 font-medium">
-          <span>{t('tax')}</span>
-          <span>₹0</span>
+        <div className="flex items-center justify-between text-xs text-gray-600">
+          <span>Canteen Service & Platform Fee</span>
+          <span className="font-bold text-emerald-600">FREE</span>
         </div>
-        <div className="pt-2 border-t border-gray-100 flex justify-between text-base font-extrabold text-gray-900">
+        <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-base font-black text-gray-900">
           <span>{t('total')}</span>
-          <span className="text-orange-600 text-lg">₹{total}</span>
+          <span className="text-orange-600">₹{total.toFixed(2)}</span>
         </div>
       </div>
 
       {/* Place Order CTA */}
-      <button
-        onClick={handlePlaceOrder}
-        disabled={placingOrder}
-        className="w-full flex items-center justify-between bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-extrabold py-4 px-6 rounded-2xl shadow-xl shadow-orange-600/30 transition-all active:scale-[0.98] disabled:opacity-50"
-      >
-        <span>₹{total} • {t('placeOrder')}</span>
-        <ArrowRight className="w-5 h-5" />
-      </button>
+      <div className="fixed bottom-16 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-200 z-30 max-w-md mx-auto">
+        <button
+          onClick={handlePlaceOrder}
+          disabled={placingOrder}
+          className="w-full flex items-center justify-between bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-extrabold py-4 px-6 rounded-2xl shadow-xl shadow-orange-600/30 transition-all active:scale-[0.98] disabled:opacity-50"
+        >
+          <div className="text-left">
+            <div className="text-[10px] text-orange-200 uppercase tracking-wider font-bold">
+              Pay via UPI & Get Token
+            </div>
+            <div className="text-base font-black">₹{total.toFixed(2)}</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span>{placingOrder ? 'Creating Token...' : 'Get Token & Pay'}</span>
+            <ArrowRight className="w-5 h-5" />
+          </div>
+        </button>
+      </div>
 
       {/* UPI Payment Modal */}
       {createdOrder && (
         <UpiPaymentModal
           isOpen={upiModalOpen}
           onClose={() => setUpiModalOpen(false)}
-          orderNumber={createdOrder.orderNumber}
-          total={createdOrder.total}
-          upiId="canteen@upi"
-          payeeName="Masi Canteen Services"
-          onClaimPaid={handleClaimPaid}
-          loading={claimLoading}
+          order={createdOrder}
+          upiId={canteenSettings?.upiId || 'canteen@upi'}
+          payeeName={canteenSettings?.canteenName || 'Masi Canteen'}
+          onClaimPayment={handlePaymentClaimed}
+          claimLoading={claimLoading}
         />
       )}
     </div>
