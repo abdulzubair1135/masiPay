@@ -248,11 +248,12 @@ export default function CheckoutPage() {
         <UpiPaymentModal
           isOpen={upiModalOpen}
           onClose={() => setUpiModalOpen(false)}
-          order={createdOrder}
+          orderNumber={createdOrder.orderNumber}
+          total={createdOrder.total}
           upiId={canteenSettings?.upiId || 'canteen@upi'}
           payeeName={canteenSettings?.canteenName || 'Masi Canteen'}
-          onClaimPayment={handlePaymentClaimed}
-          claimLoading={claimLoading}
+          onClaimPaid={handlePaymentClaimed}
+          loading={claimLoading}
         />
       )}
     </div>

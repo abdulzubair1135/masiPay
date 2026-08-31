@@ -334,11 +334,12 @@ export default function LiveOrderTrackingPage() {
       <UpiPaymentModal
         isOpen={upiModalOpen}
         onClose={() => setUpiModalOpen(false)}
-        order={orderData}
+        orderNumber={orderData.orderNumber}
+        total={orderData.total}
         upiId="canteen@upi"
         payeeName="Masi Canteen"
-        onClaimPayment={handleClaimPayment}
-        claimLoading={claimLoading}
+        onClaimPaid={handleClaimPayment}
+        loading={claimLoading}
       />
     </div>
   );
