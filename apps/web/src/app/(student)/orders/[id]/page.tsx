@@ -351,16 +351,26 @@ export default function LiveOrderTrackingPage() {
         </div>
       </div>
 
-      {/* Cancel Order Button */}
-      {['PENDING_PAYMENT', 'PAYMENT_VERIFYING'].includes(status) && (
-        <button
-          onClick={handleCancelOrder}
-          disabled={cancelling}
-          className="w-full py-3 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-2xl border border-rose-200 transition active:scale-98"
+      {/* Call Masi & Cancel Action Buttons */}
+      <div className="space-y-2.5 mb-6">
+        <a
+          href="tel:9876543210"
+          className="w-full py-3.5 bg-gray-900 hover:bg-black text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-md transition active:scale-98"
         >
-          {cancelling ? 'Cancelling...' : 'Cancel This Order'}
-        </button>
-      )}
+          <Phone className="w-4 h-4 text-emerald-400" />
+          <span>Call Masi / Canteen Counter (+91 9876543210)</span>
+        </a>
+
+        {['PENDING_PAYMENT', 'PAYMENT_VERIFYING'].includes(status) && (
+          <button
+            onClick={handleCancelOrder}
+            disabled={cancelling}
+            className="w-full py-3 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-2xl border border-rose-200 transition active:scale-98"
+          >
+            {cancelling ? 'Cancelling...' : '❌ Cancel This Order'}
+          </button>
+        )}
+      </div>
 
       {/* UPI Modal */}
       <UpiPaymentModal

@@ -396,7 +396,7 @@ export default function StaffKitchenDashboard() {
                     <OrderTimerBadge createdAt={order.createdAt} />
                   </div>
 
-                  {/* Student Info with Live Selfie Photo */}
+                  {/* Student Info with Live Selfie Photo & Direct Call Button */}
                   <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-2xl mb-3 border border-gray-100">
                     <img
                       src={order.userId?.profileImage || 'https://api.dicebear.com/7.x/bottts/svg?seed=student'}
@@ -407,10 +407,14 @@ export default function StaffKitchenDashboard() {
                       <div className="text-xs font-extrabold text-gray-900 truncate">
                         {order.userId?.name || 'Student'}
                       </div>
-                      <div className="text-[11px] text-gray-500 flex items-center gap-1">
-                        <Phone className="w-3 h-3 text-orange-600" />
-                        <span>+91 {order.userId?.phone || 'No phone'}</span>
-                      </div>
+                      <a
+                        href={`tel:${order.userId?.phone || ''}`}
+                        className="text-[11px] font-bold text-orange-600 hover:underline flex items-center gap-1 mt-0.5"
+                        title="Click to Call Student"
+                      >
+                        <Phone className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+                        <span>+91 {order.userId?.phone || 'No phone'} (Call)</span>
+                      </a>
                     </div>
 
                     {/* Payment Mode Badge */}
@@ -479,8 +483,24 @@ export default function StaffKitchenDashboard() {
                 {/* Action Pipeline & Quick Kitchen Alerts */}
                 <div className="pt-3 border-t border-gray-100 space-y-2">
                   {isPending && (
-                    <div className="text-center text-xs font-bold text-gray-400 py-1">
-                      Waiting for student payment claim...
+                    <div className="space-y-2">
+                      <div className="text-[11px] font-extrabold text-gray-500 text-center bg-gray-50 p-2 rounded-xl border border-gray-100">
+                        Waiting for student to claim payment (UPI / Cash)
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => handleRejectPayment(order._id)}
+                          className="py-2.5 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-black text-xs rounded-xl border border-rose-200 transition"
+                        >
+                          ❌ Cancel Order
+                        </button>
+                        <button
+                          onClick={() => handleVerifyPayment(order._id)}
+                          className="py-2.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition"
+                        >
+                          ⚡ Direct Accept (Paid)
+                        </button>
+                      </div>
                     </div>
                   )}
 
