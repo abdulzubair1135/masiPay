@@ -15,10 +15,10 @@ export class AuthController {
 
   static async studentQuickLogin(req: Request, res: Response) {
     try {
-      const { phone } = req.body;
+      const phone = req.body.phone || req.body.rollNumberOrPhone;
       const result = await AuthService.studentQuickLogin(phone);
       if (!result.exists) {
-        sendError(res, 'Account not found with this Mobile Number. Please sign up with your Name & Selfie.', 404);
+        sendError(res, 'Account not found with this Mobile Number. Please click "Sign Up with Selfie & Name" below to register.', 404);
         return;
       }
       sendSuccess(res, result, 'Login successful');

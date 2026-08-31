@@ -64,8 +64,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkUser();
   }, []);
 
-  const loginStudent = async (rollNumberOrPhone: string): Promise<UserProfile> => {
-    const res = await api.post('/auth/login/student', { rollNumberOrPhone });
+  const loginStudent = async (phone: string): Promise<UserProfile> => {
+    const res = await api.post('/auth/login/student', { phone: phone.trim() });
     const { token: receivedToken, user: receivedUser } = res.data.data;
     localStorage.setItem('masi_token', receivedToken);
     setToken(receivedToken);
