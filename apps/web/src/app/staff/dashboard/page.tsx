@@ -7,6 +7,7 @@ import { api } from '../../../lib/api';
 import { getSocket } from '../../../lib/socket';
 import { playOrderBellSound } from '../../../lib/sound';
 import { OrderTimerBadge } from '../../../components/OrderTimerBadge';
+import { CounterQrScannerModal } from '../../../components/CounterQrScannerModal';
 import {
   ChefHat,
   Bell,
@@ -29,6 +30,9 @@ import {
   AlertTriangle,
   MessageCircle,
   X,
+  MapPin,
+  Camera,
+  Printer,
 } from 'lucide-react';
 
 export default function StaffKitchenDashboard() {
@@ -631,40 +635,15 @@ export default function StaffKitchenDashboard() {
         </div>
       )}
 
-      {/* Pickup Counter Selection Modal */}
+      {/* Pickup Counter Camera QR Scanner & Selection Modal */}
       {counterModalOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border-2 border-blue-200 animate-in zoom-in-95 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mx-auto mb-3 shadow-md">
-              <CheckCircle2 className="w-7 h-7" />
-            </div>
-            <h3 className="text-xl font-black text-gray-900">
-              Khana Kaunse Counter Par Rakha?
-            </h3>
-            <p className="text-xs text-gray-500 mb-4">
-              TOKEN #{counterModalOrder.orderNumber} ke liye Counter chunein:
-            </p>
-
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              {availableCounters.map((cnt) => (
-                <button
-                  key={cnt}
-                  onClick={() => handleMarkReadyWithCounter(counterModalOrder._id, cnt)}
-                  className="py-3 px-2 rounded-2xl border-2 border-blue-200 bg-blue-50/60 hover:bg-blue-600 hover:text-white font-black text-xs transition active:scale-95 text-blue-900"
-                >
-                  📍 {cnt}
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={() => setCounterModalOrder(null)}
-              className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold text-xs rounded-xl"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <CounterQrScannerModal
+          isOpen={!!counterModalOrder}
+          onClose={() => setCounterModalOrder(null)}
+          orderNumber={counterModalOrder.orderNumber}
+          orderId={counterModalOrder._id}
+          onCounterSelected={(cnt) => handleMarkReadyWithCounter(counterModalOrder._id, cnt)}
+        />
       )}
 
       {/* Cash Proof Modal View */}
