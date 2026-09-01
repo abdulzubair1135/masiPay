@@ -26,6 +26,7 @@ router.post('/orders/:id/complete', StaffController.markComplete);
 router.post('/orders/:id/cancel', validateBody(cancelOrderSchema), StaffController.cancelOrder);
 router.post('/orders/:id/alert', validateBody(kitchenAlertSchema), StaffController.sendKitchenAlert);
 
+router.post('/orders/verify-all', StaffController.verifyAllPendingPayments);
 router.post('/orders/:id/verify-payment', StaffController.verifyPayment);
 router.post('/orders/:id/reject-payment', validateBody(rejectPaymentSchema), StaffController.rejectPayment);
 router.post('/payments/:id/verify', validateBody(verifyPaymentSchema), StaffController.verifyPayment);

@@ -141,6 +141,20 @@ export default function StaffKitchenDashboard() {
   }, [user, authLoading, soundEnabled]);
 
   // Actions
+  const [verifyingAll, setVerifyingAll] = useState(false);
+
+  const handleVerifyAll = async () => {
+    try {
+      setVerifyingAll(true);
+      await api.post('/staff/orders/verify-all');
+      await fetchActiveOrders();
+    } catch (err: any) {
+      alert(err.message || 'Failed to bulk verify orders');
+    } finally {
+      setVerifyingAll(false);
+    }
+  };
+
   const handleVerifyPayment = async (orderId: string) => {
     try {
       await api.post(`/staff/orders/${orderId}/verify-payment`);
@@ -368,6 +382,33 @@ export default function StaffKitchenDashboard() {
           </button>
         ))}
       </div>
+
+      {/* Bulk 1-Click Verification Banner when multiple students pay at once */}
+      {orders.filter((o) => ['PENDING_PAYMENT', 'PAYMENT_VERIFYING'].includes(o.status)).length > 1 && (
+        <div className="mb-4 p-4 rounded-3xl bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center font-black text-lg">
+              ⚡
+            </div>
+            <div>
+              <div className="text-xs font-black uppercase tracking-wider text-amber-100">
+                Rush Alert: {orders.filter((o) => ['PENDING_PAYMENT', 'PAYMENT_VERIFYING'].includes(o.status)).length} Student Payments Waiting
+              </div>
+              <div className="text-xs font-extrabold text-white/90">
+                Ek sath sabhi orders ko 1-Click mein accept aur cooking queue mein bhejein:
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={handleVerifyAll}
+            disabled={verifyingAll}
+            className="py-3 px-5 bg-white hover:bg-amber-50 text-orange-700 font-black text-xs rounded-2xl shadow-md transition active:scale-95 whitespace-nowrap flex items-center justify-center gap-1.5"
+          >
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span>{verifyingAll ? 'Verifying All...' : `⚡ Verify All (${orders.filter((o) => ['PENDING_PAYMENT', 'PAYMENT_VERIFYING'].includes(o.status)).length} Orders)`}</span>
+          </button>
+        </div>
+      )}
 
       {/* Orders Grid */}
       {filteredOrders.length === 0 ? (

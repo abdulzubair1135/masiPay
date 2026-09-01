@@ -123,6 +123,24 @@ export class StaffController {
     }
   }
 
+  static async verifyAllPendingPayments(req: AuthenticatedRequest, res: Response) {
+    try {
+      const pendingOrders = await Order.find({
+        status: { $in: ['PENDING_PAYMENT', 'PAYMENT_VERIFYING'] },
+      });
+      let verifiedCount = 0;
+      for (const ord of pendingOrders) {
+        try {
+          await PaymentService.verifyPayment(ord._id.toString(), req.user!);
+          verifiedCount++;
+        } catch (e) {}
+      }
+      sendSuccess(res, { count: verifiedCount }, `Successfully verified all ${verifiedCount} pending payments`);
+    } catch (error: any) {
+      sendError(res, error.message, 400);
+    }
+  }
+
   static async rejectPayment(req: AuthenticatedRequest, res: Response) {
     try {
       const { reason } = req.body;
