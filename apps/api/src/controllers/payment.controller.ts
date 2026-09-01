@@ -115,14 +115,23 @@ export class PaymentWebhookController {
         });
       }
 
-      // Match Strategy 3: Match oldest pending order with exact amount (FIFO fallback)
+      // Match Strategy 3: Safe Single Candidate Match (Ambiguity Guard)
+      // Only auto-verify if there is EXACTLY ONE pending order with this amount.
+      // If 2 or more students ordered ₹50 simultaneously without unique Name/UTR,
+      // the system will NEVER guess - it leaves it for Masi's 1-tap manual verification to prevent fraud!
       if (!matchedOrder && parsedAmount > 0) {
-        matchedOrder = await Order.findOne({
+        const matchingOrders = await Order.find({
           status: { $in: ['PENDING_PAYMENT', 'PAYMENT_VERIFYING'] },
           total: parsedAmount,
-        })
-          .sort({ createdAt: 1 })
-          .populate('userId', 'name phone');
+        }).populate('userId', 'name phone');
+
+        if (matchingOrders.length === 1) {
+          matchedOrder = matchingOrders[0];
+        } else if (matchingOrders.length > 1) {
+          console.warn(
+            `[Auto-Sync Ambiguity Guard] ${matchingOrders.length} orders found with Amount ₹${parsedAmount}. Awaiting UTR or Masi manual verification.`
+          );
+        }
       }
 
       if (!matchedOrder) {
