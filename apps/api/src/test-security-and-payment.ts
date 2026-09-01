@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { ENV } from './config/env.js';
 import { User } from './models/User.js';
 import { MenuItem } from './models/MenuItem.js';
-import { Category } from './models/Category.js';
+import { MenuCategory } from './models/MenuCategory.js';
 import { Order } from './models/Order.js';
 import { Payment } from './models/Payment.js';
 import { AuthService } from './services/auth.service.js';
@@ -36,8 +36,8 @@ async function runSecurityAndPaymentTests() {
     // TEST 1: Price Tampering / Server-Side Price Calculation Check
     // -------------------------------------------------------------
     console.log('\n[1/6] 🛡️ Testing Price Tampering & Injection Attack...');
-    let cat = await Category.findOne({ name: 'Snacks' });
-    if (!cat) cat = await Category.create({ name: 'Snacks', displayOrder: 1 });
+    let cat = await MenuCategory.findOne({ name: 'Snacks' });
+    if (!cat) cat = await MenuCategory.create({ name: 'Snacks', displayOrder: 1 });
 
     let item = await MenuItem.findOne({ name: 'Security Test Samosa' });
     if (!item) {
