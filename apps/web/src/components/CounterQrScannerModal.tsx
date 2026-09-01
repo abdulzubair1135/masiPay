@@ -19,6 +19,7 @@ interface CounterQrScannerModalProps {
   onClose: () => void;
   orderNumber: number;
   orderId: string;
+  assignedCounter?: string;
   onCounterSelected: (counterName: string) => void;
 }
 
@@ -40,6 +41,7 @@ export const CounterQrScannerModal: React.FC<CounterQrScannerModalProps> = ({
   onClose,
   orderNumber,
   orderId,
+  assignedCounter = 'Counter A',
   onCounterSelected,
 }) => {
   const [activeView, setActiveView] = useState<'SCANNER' | 'PRINT'>('SCANNER');
@@ -199,8 +201,37 @@ export const CounterQrScannerModal: React.FC<CounterQrScannerModalProps> = ({
 
         {activeView === 'SCANNER' ? (
           <div>
+            {/* App Assigned Target Counter Banner */}
+            <div className="mb-3.5 p-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl shadow-sm text-center">
+              <div className="text-[10px] uppercase font-extrabold tracking-wider text-amber-100">
+                🎯 App ne Counter Chun Liya Hai
+              </div>
+              <div className="text-xl font-black">
+                📍 {assignedCounter}
+              </div>
+              <div className="text-[11px] text-white/90 font-semibold mt-0.5">
+                Yeh order {assignedCounter} par rakhna hai!
+              </div>
+            </div>
+
+            {/* Quick 1-Click Confirm Button */}
+            <button
+              onClick={() => {
+                stopScanner();
+                onCounterSelected(assignedCounter);
+              }}
+              className="w-full py-3.5 mb-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-1.5 active:scale-95"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>⚡ Confirm Placed on {assignedCounter}</span>
+            </button>
+
+            <div className="text-center text-[11px] text-gray-400 font-bold mb-2">
+              — YA CAMERA SE COUNTER QR SCAN KAREIN —
+            </div>
+
             {/* Live Camera Box */}
-            <div className="relative rounded-2xl overflow-hidden bg-black aspect-square max-w-[260px] mx-auto border-2 border-sky-400 shadow-inner mb-4 flex items-center justify-center">
+            <div className="relative rounded-2xl overflow-hidden bg-black aspect-square max-w-[220px] mx-auto border-2 border-sky-400 shadow-inner mb-3 flex items-center justify-center">
               <div id="counter-qr-reader" className="w-full h-full" />
               {cameraError && (
                 <div className="absolute inset-0 bg-gray-900/90 text-white p-4 flex flex-col items-center justify-center text-center text-xs">

@@ -93,6 +93,28 @@ export class OrderService {
     const total = subtotal + tax;
     const orderNumber = await getNextOrderNumber();
 
+    // Auto-balance and assign optimal Pickup Counter (Counter A, B, C, D, E)
+    const counters = ['Counter A', 'Counter B', 'Counter C', 'Counter D', 'Counter E'];
+    const activeOrderCounts = await Order.aggregate([
+      { $match: { status: { $in: ['PENDING_PAYMENT', 'PAYMENT_VERIFYING', 'ACCEPTED', 'PREPARING', 'READY'] } } },
+      { $group: { _id: '$pickupCounter', count: { $sum: 1 } } }
+    ]);
+    const countsMap: Record<string, number> = {};
+    counters.forEach((c) => { countsMap[c] = 0; });
+    activeOrderCounts.forEach((ac) => {
+      if (ac._id && countsMap[ac._id] !== undefined) {
+        countsMap[ac._id] = ac.count;
+      }
+    });
+    let optimalCounter = counters[0];
+    let minLoad = countsMap[optimalCounter];
+    for (const c of counters) {
+      if (countsMap[c] < minLoad) {
+        minLoad = countsMap[c];
+        optimalCounter = c;
+      }
+    }
+
     const order = await Order.create({
       orderNumber,
       userId: data.userId,
@@ -103,6 +125,7 @@ export class OrderService {
       subtotal,
       tax,
       total,
+      pickupCounter: optimalCounter,
       status: 'PENDING_PAYMENT',
       notes: data.notes,
     });

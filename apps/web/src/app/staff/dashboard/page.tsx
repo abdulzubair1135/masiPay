@@ -452,6 +452,15 @@ export default function StaffKitchenDashboard() {
                     </div>
                   </div>
 
+                  {/* App-Assigned Target Counter Banner */}
+                  <div className="mb-3 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs font-black text-amber-900">
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Target Counter:</span>
+                    </div>
+                    <span className="bg-amber-600 text-white px-2 py-0.5 rounded-lg font-black">{order.pickupCounter || 'Counter A'}</span>
+                  </div>
+
                   {/* Cash Proof Image thumbnail */}
                   {order.payment?.proofImage && (
                     <div className="mb-3 p-2 bg-emerald-50 rounded-2xl border border-emerald-200 flex items-center justify-between">
@@ -642,6 +651,7 @@ export default function StaffKitchenDashboard() {
           onClose={() => setCounterModalOrder(null)}
           orderNumber={counterModalOrder.orderNumber}
           orderId={counterModalOrder._id}
+          assignedCounter={counterModalOrder.pickupCounter || 'Counter A'}
           onCounterSelected={(cnt) => handleMarkReadyWithCounter(counterModalOrder._id, cnt)}
         />
       )}
