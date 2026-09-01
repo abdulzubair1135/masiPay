@@ -84,18 +84,34 @@ export class PaymentWebhookController {
         }).populate('userId', 'name phone');
       }
 
-      // Match Strategy 1: Match by UTR / Reference number (if present)
+      // Match Strategy 1: Match by UTR / Reference number (12-digit or last 4-digits)
       if (!matchedOrder && parsedUtr) {
-        const payment = await Payment.findOne({
+        // Direct match
+        let payment = await Payment.findOne({
           transactionReference: parsedUtr,
           status: { $in: ['PENDING', 'USER_CLAIMED'] },
         });
+
+        // If not direct, match by suffix (e.g. user entered last 4 or 6 digits)
+        if (!payment && parsedUtr.length >= 4) {
+          const pendingPayments = await Payment.find({
+            status: { $in: ['PENDING', 'USER_CLAIMED'] },
+          });
+          payment = pendingPayments.find((p) => {
+            if (!p.transactionReference) return false;
+            return (
+              parsedUtr.endsWith(p.transactionReference) ||
+              p.transactionReference.endsWith(parsedUtr)
+            );
+          }) || null;
+        }
+
         if (payment) {
           matchedOrder = await Order.findById(payment.orderId).populate('userId', 'name phone');
         }
       }
 
-      // Match Strategy 2: Match by Sender Name + Exact Amount (Zero UTR needed!)
+      // Match Strategy 2: Match by Sender Name + Exact Amount (Collision Guard)
       if (!matchedOrder && parsedSender && parsedAmount > 0) {
         const candidateOrders = await Order.find({
           status: { $in: ['PENDING_PAYMENT', 'PAYMENT_VERIFYING'] },
@@ -103,16 +119,23 @@ export class PaymentWebhookController {
         }).populate('userId', 'name phone');
 
         const senderNorm = parsedSender.toLowerCase().replace(/[^a-z0-9]/g, '');
-        matchedOrder = candidateOrders.find((ord: any) => {
+        const matchedList = candidateOrders.filter((ord: any) => {
           const userNameNorm = (ord.userId?.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
           if (!userNameNorm) return false;
           return (
-            userNameNorm.includes(senderNorm) ||
-            senderNorm.includes(userNameNorm) ||
-            senderNorm.split(' ').some((part: string) => part.length >= 3 && userNameNorm.includes(part)) ||
-            userNameNorm.split(' ').some((part: string) => part.length >= 3 && senderNorm.includes(part))
+            userNameNorm === senderNorm ||
+            (userNameNorm.length >= 4 && senderNorm.includes(userNameNorm))
           );
         });
+
+        // ONLY auto-verify if EXACTLY ONE student uniquely matches this name
+        if (matchedList.length === 1) {
+          matchedOrder = matchedList[0];
+        } else if (matchedList.length > 1) {
+          console.warn(
+            `[Auto-Sync Collision] ${matchedList.length} orders match name "${parsedSender}". Awaiting UTR or Masi manual verify.`
+          );
+        }
       }
 
       // Match Strategy 3: Safe Single Candidate Match (Ambiguity Guard)
