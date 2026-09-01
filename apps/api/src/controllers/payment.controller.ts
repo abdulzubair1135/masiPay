@@ -24,10 +24,11 @@ export class PaymentWebhookController {
 
       let parsedAmount = rawAmount ? Number(rawAmount) : 0;
       let parsedUtr = rawUtr ? String(rawUtr).trim() : '';
+      let parsedSender = sender ? String(sender).trim() : '';
 
-      // Parse from raw notification/SMS text if passed
+      // Parse from raw notification/SMS text if passed (e.g. "SHAIKH ABDUL ZUBAIRA paid you ₹1.00")
       if (text && typeof text === 'string') {
-        // Parse Amount (e.g., "Received Rs. 50.00" or "credited with INR 50.00" or "₹50")
+        // Parse Amount (e.g., "₹1.00" or "INR 1.00" or "paid you ₹1.00")
         if (!parsedAmount) {
           const amtMatch = text.match(/(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d{2})?)/i);
           if (amtMatch) {
@@ -35,16 +36,27 @@ export class PaymentWebhookController {
           }
         }
 
-        // Parse 12-digit UTR / Reference ID
+        // Parse Sender Name from GPay ("SHAIKH ABDUL ZUBAIRA paid you ₹1.00")
+        if (!parsedSender) {
+          const gpayNameMatch = text.match(/^(.+?)\s+paid you/i) || text.match(/received.*?from\s+([A-Za-z\s]+)/i);
+          if (gpayNameMatch) {
+            parsedSender = gpayNameMatch[1].trim();
+          }
+        }
+
+        // Parse 12-digit UTR / Reference ID if available
         if (!parsedUtr) {
-          const utrMatch = text.match(/(?:utr|ref|rrn|txn|id)[\s:/-]*([a-zA-Z0-9]{8,20})/i) || text.match(/\b\d{12}\b/);
+          const utrMatch =
+            text.match(/(?:utr|ref|rrn|txn|id)[\s:/-]*([a-zA-Z0-9]{8,20})/i) || text.match(/\b\d{12}\b/);
           if (utrMatch) {
             parsedUtr = utrMatch[1] || utrMatch[0];
           }
         }
       }
 
-      console.log(`[Auto-Sync Webhook] Incoming Notification: Amount=₹${parsedAmount}, UTR=${parsedUtr}, Text="${text}"`);
+      console.log(
+        `[Auto-Sync Webhook] Notification parsed: Sender="${parsedSender}", Amount=₹${parsedAmount}, UTR="${parsedUtr}", Raw="${text}"`
+      );
 
       // Find system bot or admin user for auto-action
       let systemUser = await User.findOne({ role: 'SUPER_ADMIN' });
@@ -52,25 +64,47 @@ export class PaymentWebhookController {
         systemUser = await User.findOne({ role: 'STAFF' });
       }
 
-      // Match Strategy 1: Match by UTR / Reference number
       let matchedOrder: any = null;
 
+      // Match Strategy 1: Match by UTR / Reference number (if present)
       if (parsedUtr) {
         const payment = await Payment.findOne({
           transactionReference: parsedUtr,
           status: { $in: ['PENDING', 'USER_CLAIMED'] },
         });
         if (payment) {
-          matchedOrder = await Order.findById(payment.orderId);
+          matchedOrder = await Order.findById(payment.orderId).populate('userId', 'name phone');
         }
       }
 
-      // Match Strategy 2: Match by exact Amount for oldest pending order
+      // Match Strategy 2: Match by Sender Name + Exact Amount (Zero UTR needed!)
+      if (!matchedOrder && parsedSender && parsedAmount > 0) {
+        const candidateOrders = await Order.find({
+          status: { $in: ['PENDING_PAYMENT', 'PAYMENT_VERIFYING'] },
+          total: parsedAmount,
+        }).populate('userId', 'name phone');
+
+        const senderNorm = parsedSender.toLowerCase().replace(/[^a-z0-9]/g, '');
+        matchedOrder = candidateOrders.find((ord: any) => {
+          const userNameNorm = (ord.userId?.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (!userNameNorm) return false;
+          return (
+            userNameNorm.includes(senderNorm) ||
+            senderNorm.includes(userNameNorm) ||
+            senderNorm.split(' ').some((part: string) => part.length >= 3 && userNameNorm.includes(part)) ||
+            userNameNorm.split(' ').some((part: string) => part.length >= 3 && senderNorm.includes(part))
+          );
+        });
+      }
+
+      // Match Strategy 3: Match oldest pending order with exact amount (FIFO fallback)
       if (!matchedOrder && parsedAmount > 0) {
         matchedOrder = await Order.findOne({
           status: { $in: ['PENDING_PAYMENT', 'PAYMENT_VERIFYING'] },
           total: parsedAmount,
-        }).sort({ createdAt: 1 });
+        })
+          .sort({ createdAt: 1 })
+          .populate('userId', 'name phone');
       }
 
       if (!matchedOrder) {
