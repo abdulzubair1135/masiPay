@@ -88,7 +88,11 @@ export default function LiveOrderTrackingPage() {
 
       socket.on('order:status_changed', (data: any) => {
         if (data.orderId === orderId) {
-          setOrderData((prev: any) => (prev ? { ...prev, status: data.newStatus } : prev));
+          setOrderData((prev: any) => (prev ? {
+            ...prev,
+            status: data.newStatus,
+            pickupCounter: data.pickupCounter || prev.pickupCounter
+          } : prev));
           if (data.newStatus === 'READY') {
             playFoodReadySiren();
             setShowSirenModal(true);
@@ -123,6 +127,20 @@ export default function LiveOrderTrackingPage() {
       };
     }
   }, [orderId]);
+
+  // 5-minute repeating siren reminder if food is READY and student has not collected
+  useEffect(() => {
+    let reminderInterval: any = null;
+    if (orderData?.status === 'READY') {
+      reminderInterval = setInterval(() => {
+        playFoodReadySiren();
+        setShowSirenModal(true);
+      }, 5 * 60 * 1000); // 5 minutes
+    }
+    return () => {
+      if (reminderInterval) clearInterval(reminderInterval);
+    };
+  }, [orderData?.status]);
 
   const handleClaimPayment = async (
     txRef?: string,
@@ -277,6 +295,18 @@ export default function LiveOrderTrackingPage() {
           </div>
         )}
 
+        {/* Counter Ready Highlight Badge */}
+        {orderData.status === 'READY' && (
+          <div className="mb-4 p-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl shadow-lg animate-pulse">
+            <div className="text-[10px] uppercase font-bold tracking-wider text-emerald-100">
+              🔔 Food Ready! Collect from:
+            </div>
+            <div className="text-xl font-black">
+              📍 {orderData.pickupCounter || 'Counter A'}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-center gap-2">
           <OrderTimerBadge createdAt={orderData.createdAt} />
         </div>
@@ -332,7 +362,7 @@ export default function LiveOrderTrackingPage() {
                   )}
                   {isCurrent && status === 'READY' && (
                     <div className="text-[11px] text-emerald-600 font-extrabold mt-0.5 animate-bounce">
-                      🔔 Khana ban gaya! Counter par Token #{orderData.orderNumber} dikhayein!
+                      🔔 Khana {orderData.pickupCounter || 'Counter'} par rakha hai! Token #{orderData.orderNumber} dikhakar le lein!
                     </div>
                   )}
                 </div>
@@ -411,10 +441,14 @@ export default function LiveOrderTrackingPage() {
             <div className="my-3 p-3 bg-orange-50 rounded-2xl border-2 border-orange-300">
               <div className="text-xs text-orange-800 font-bold">Aapka Order Token</div>
               <div className="text-3xl font-black text-orange-600">TOKEN #{orderData.orderNumber}</div>
+              <div className="mt-2 pt-2 border-t border-orange-200 text-sm font-black text-emerald-700 flex items-center justify-center gap-1">
+                <span>📍 Rakha Hai:</span>
+                <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-lg">{orderData.pickupCounter || 'Counter A'}</span>
+              </div>
             </div>
 
             <p className="text-xs text-gray-600 font-bold mb-5">
-              {activeAlert?.message || 'Masi ne aapka khana bana diya hai. Jaldi se counter par jakar Token dikhayein aur garma-garam khana lein!'}
+              {activeAlert?.message || `Masi ne aapka khana ${orderData.pickupCounter || 'Counter'} par rakh diya hai. Jaldi se jakar Token dikhayein aur khana lein!`}
             </p>
 
             <button
@@ -422,7 +456,7 @@ export default function LiveOrderTrackingPage() {
               className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 text-white font-black text-xs rounded-2xl shadow-xl shadow-emerald-600/30 transition active:scale-95 flex items-center justify-center gap-2"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>🚀 Main Counter Par Jaa Raha Hoon!</span>
+              <span>🚀 Main {orderData.pickupCounter || 'Counter'} Par Jaa Raha Hoon!</span>
             </button>
           </div>
         </div>

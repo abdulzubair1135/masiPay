@@ -66,8 +66,15 @@ export class StaffController {
 
   static async markReady(req: AuthenticatedRequest, res: Response) {
     try {
-      const order = await OrderService.updateOrderStatus(req.params.id as string, 'READY', req.user!);
-      sendSuccess(res, order, 'Order marked Ready');
+      const counter = req.body?.counter || 'Counter A';
+      const order = await OrderService.updateOrderStatus(
+        req.params.id as string,
+        'READY',
+        req.user!,
+        undefined,
+        counter
+      );
+      sendSuccess(res, order, `Order marked Ready at ${counter}`);
     } catch (error: any) {
       sendError(res, error.message, 400);
     }

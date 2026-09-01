@@ -141,7 +141,8 @@ export class OrderService {
     orderId: string,
     newStatus: OrderStatus,
     staffUser: IUser,
-    cancellationReason?: string
+    cancellationReason?: string,
+    pickupCounter?: string
   ) {
     const order = await Order.findById(orderId).populate('userId', 'name rollNumber profileImage');
     if (!order) throw new Error('Order not found');
@@ -168,7 +169,10 @@ export class OrderService {
 
     if (newStatus === 'ACCEPTED') order.acceptedAt = new Date();
     if (newStatus === 'PREPARING') order.preparingAt = new Date();
-    if (newStatus === 'READY') order.readyAt = new Date();
+    if (newStatus === 'READY') {
+      order.readyAt = new Date();
+      if (pickupCounter) order.pickupCounter = pickupCounter;
+    }
     if (newStatus === 'DELIVERED') order.deliveredAt = new Date();
     if (newStatus === 'COMPLETED') order.completedAt = new Date();
     if (newStatus === 'CANCELLED') {
@@ -193,7 +197,7 @@ export class OrderService {
       fromStatus: previousStatus,
       toStatus: newStatus,
       changedById: staffUser._id,
-      note: cancellationReason || `Status moved to ${newStatus}`,
+      note: cancellationReason || `Status moved to ${newStatus}${order.pickupCounter ? ` (${order.pickupCounter})` : ''}`,
     });
 
     await logAction({
@@ -201,7 +205,7 @@ export class OrderService {
       action: `ORDER_${newStatus}`,
       entityType: 'Order',
       entityId: order._id.toString(),
-      metadata: { orderNumber: order.orderNumber, from: previousStatus, to: newStatus },
+      metadata: { orderNumber: order.orderNumber, from: previousStatus, to: newStatus, pickupCounter: order.pickupCounter },
     });
 
     // Customer notifications
@@ -218,8 +222,8 @@ export class OrderService {
         userId: order.userId._id.toString(),
         orderId: order._id.toString(),
         type: 'ORDER_READY',
-        title: 'Order is Ready! 🔔',
-        message: `Order #${order.orderNumber} is ready for Table ${order.tableNumber}!`,
+        title: `Order is Ready at ${order.pickupCounter || 'Counter'}! 🔔`,
+        message: `Order #${order.orderNumber} is ready at ${order.pickupCounter || 'Counter'}! Please collect with your token.`,
       });
     } else if (newStatus === 'DELIVERED' || newStatus === 'COMPLETED') {
       await createNotification({
@@ -243,6 +247,7 @@ export class OrderService {
       orderId: order._id,
       orderNumber: order.orderNumber,
       status: newStatus,
+      pickupCounter: order.pickupCounter,
       cancellationReason: order.cancellationReason,
       updatedAt: new Date(),
     };

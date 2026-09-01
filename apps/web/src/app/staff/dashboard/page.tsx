@@ -49,6 +49,20 @@ export default function StaffKitchenDashboard() {
   const [activeTab, setActiveTab] = useState<'ALL' | 'PAYMENT' | 'PREPARING' | 'READY'>('ALL');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [selectedProofImg, setSelectedProofImg] = useState<string | null>(null);
+  const [counterModalOrder, setCounterModalOrder] = useState<any | null>(null);
+
+  const availableCounters = [
+    'Counter A',
+    'Counter B',
+    'Counter C',
+    'Counter D',
+    'Counter E',
+    'Counter 1',
+    'Counter 2',
+    'Counter 3',
+    'Counter 4',
+    'Counter 5',
+  ];
 
   const fetchActiveOrders = async () => {
     try {
@@ -152,9 +166,10 @@ export default function StaffKitchenDashboard() {
     }
   };
 
-  const handleMarkReady = async (orderId: string) => {
+  const handleMarkReadyWithCounter = async (orderId: string, counter: string) => {
     try {
-      await api.post(`/staff/orders/${orderId}/ready`);
+      await api.post(`/staff/orders/${orderId}/ready`, { counter });
+      setCounterModalOrder(null);
       await fetchActiveOrders();
     } catch (err: any) {
       alert(err.message || 'Failed to update status');
@@ -538,22 +553,27 @@ export default function StaffKitchenDashboard() {
 
                   {isPreparing && (
                     <button
-                      onClick={() => handleMarkReady(order._id)}
-                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-2xl shadow-lg transition active:scale-95 flex items-center justify-center gap-1.5"
+                      onClick={() => setCounterModalOrder(order)}
+                      className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 text-white font-black text-xs rounded-2xl shadow-lg transition active:scale-95 flex items-center justify-center gap-1.5"
                     >
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>Mark Ready for Pickup</span>
+                      <span>Mark Ready & Choose Counter (A, B, C...)</span>
                     </button>
                   )}
 
                   {isReady && (
-                    <button
-                      onClick={() => handleMarkDelivered(order._id)}
-                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl shadow-lg transition active:scale-95 flex items-center justify-center gap-1.5"
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Hand Over to Student</span>
-                    </button>
+                    <div className="space-y-2">
+                      <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 p-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 text-center">
+                        <span>📍 Rakha Hai: <strong>{order.pickupCounter || 'Counter A'}</strong></span>
+                      </div>
+                      <button
+                        onClick={() => handleMarkDelivered(order._id)}
+                        className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl shadow-lg transition active:scale-95 flex items-center justify-center gap-1.5"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Hand Over to Student (Delivered)</span>
+                      </button>
+                    </div>
                   )}
 
                   {/* Kitchen Quick Callouts & Alerts Bar */}
@@ -608,6 +628,42 @@ export default function StaffKitchenDashboard() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pickup Counter Selection Modal */}
+      {counterModalOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border-2 border-blue-200 animate-in zoom-in-95 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mx-auto mb-3 shadow-md">
+              <CheckCircle2 className="w-7 h-7" />
+            </div>
+            <h3 className="text-xl font-black text-gray-900">
+              Khana Kaunse Counter Par Rakha?
+            </h3>
+            <p className="text-xs text-gray-500 mb-4">
+              TOKEN #{counterModalOrder.orderNumber} ke liye Counter chunein:
+            </p>
+
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {availableCounters.map((cnt) => (
+                <button
+                  key={cnt}
+                  onClick={() => handleMarkReadyWithCounter(counterModalOrder._id, cnt)}
+                  className="py-3 px-2 rounded-2xl border-2 border-blue-200 bg-blue-50/60 hover:bg-blue-600 hover:text-white font-black text-xs transition active:scale-95 text-blue-900"
+                >
+                  📍 {cnt}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setCounterModalOrder(null)}
+              className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold text-xs rounded-xl"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
