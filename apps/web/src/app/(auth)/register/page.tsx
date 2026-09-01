@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { SelfieCamera } from '../../../components/SelfieCamera';
-import { ArrowRight, UserPlus } from 'lucide-react';
+import { ArrowRight, UserPlus, AlertCircle } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -23,13 +23,18 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!name.trim() || phone.length < 10) return;
 
+    if (!selfieImage || selfieImage.trim().length === 0) {
+      setError('📸 Live Selfie Photo is Compulsory! Please snap a photo using your camera.');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
       await registerStudent({
         name: name.trim(),
         phone: phone.trim(),
-        profileImage: selfieImage || undefined,
+        profileImage: selfieImage,
         language: 'en',
       });
       router.push('/menu');
@@ -50,23 +55,32 @@ export default function RegisterPage() {
         <h1 className="text-2xl font-black text-gray-900 tracking-tight">
           Quick Student Signup
         </h1>
-        <p className="text-xs text-gray-500">Snap a selfie and enter your name to start ordering</p>
+        <p className="text-xs text-gray-500">Snap a compulsory selfie and enter your name to start ordering</p>
       </div>
 
       {error && (
-        <div className="p-3.5 bg-rose-50 text-rose-700 text-xs font-bold rounded-2xl border border-rose-200 mb-4 text-center">
-          {error}
+        <div className="p-3.5 bg-rose-50 text-rose-700 text-xs font-bold rounded-2xl border border-rose-200 mb-4 text-center flex items-center justify-center gap-1.5">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{error}</span>
         </div>
       )}
 
       <div className="bg-white rounded-3xl p-6 border border-orange-100 shadow-sm">
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Selfie Photo */}
+          {/* Selfie Photo (Compulsory) */}
           <div className="text-center pb-2">
-            <label className="block text-xs font-bold text-gray-700 mb-2">
-              📸 Student Selfie (Masi will see this on order card)
+            <label className="block text-xs font-black text-gray-800 mb-2">
+              📸 Student Selfie <span className="text-rose-600 font-extrabold">* (COMPULSORY)</span>
             </label>
-            <SelfieCamera onCapture={(img) => setSelfieImage(img)} initialImage={selfieImage} />
+            <SelfieCamera onCapture={(img) => {
+              setSelfieImage(img);
+              if (img) setError(null);
+            }} initialImage={selfieImage} />
+            {!selfieImage && (
+              <p className="text-[11px] font-bold text-amber-600 mt-2">
+                ⚠️ Click camera icon above to snap photo before continuing
+              </p>
+            )}
           </div>
 
           {/* Full Name */}
@@ -107,10 +121,10 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            disabled={loading || phone.length < 10 || !name.trim()}
-            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-extrabold py-4 px-6 rounded-2xl shadow-lg shadow-orange-600/30 transition-all active:scale-[0.98] disabled:opacity-50"
+            disabled={loading || phone.length < 10 || !name.trim() || !selfieImage}
+            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-extrabold py-4 px-6 rounded-2xl shadow-lg shadow-orange-600/30 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <span>{loading ? 'Creating Profile...' : 'Continue to Menu'}</span>
+            <span>{loading ? 'Creating Profile...' : !selfieImage ? '📸 Snap Selfie to Continue' : 'Continue to Menu'}</span>
             <ArrowRight className="w-5 h-5" />
           </button>
         </form>

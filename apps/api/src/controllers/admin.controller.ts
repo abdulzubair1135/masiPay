@@ -247,11 +247,12 @@ export class AdminController {
 
   static async updateSettings(req: AuthenticatedRequest, res: Response) {
     try {
+      const { _id, __v, createdAt, updatedAt, ...updateData } = req.body;
       let settings = await CanteenSettings.findOne();
       if (!settings) {
-        settings = await CanteenSettings.create(req.body);
+        settings = await CanteenSettings.create(updateData);
       } else {
-        Object.assign(settings, req.body);
+        Object.assign(settings, updateData);
         await settings.save();
       }
 
@@ -260,10 +261,10 @@ export class AdminController {
         action: 'UPDATE_SETTINGS',
         entityType: 'CanteenSettings',
         entityId: settings._id.toString(),
-        metadata: req.body,
+        metadata: updateData,
       });
 
-      sendSuccess(res, settings, 'Settings updated');
+      sendSuccess(res, settings, 'Settings updated successfully');
     } catch (error: any) {
       sendError(res, error.message, 400);
     }

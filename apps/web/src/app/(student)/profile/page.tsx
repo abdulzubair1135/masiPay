@@ -6,23 +6,36 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { LanguageModal } from '../../../components/LanguageModal';
+import { SelfieCamera } from '../../../components/SelfieCamera';
+import { api } from '../../../lib/api';
 import {
   User,
   Globe,
   Clock,
-  Heart,
   LogOut,
   Shield,
   ChefHat,
   ChevronRight,
   Phone,
+  Edit3,
+  Camera,
+  Save,
+  X,
+  CheckCircle2,
 } from 'lucide-react';
 
 export default function StudentProfilePage() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { t, language } = useLanguage();
   const [langModalOpen, setLangModalOpen] = useState(false);
+
+  // Edit Profile States
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(user?.name || '');
+  const [editImage, setEditImage] = useState(user?.profileImage || '');
+  const [saving, setSaving] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
   if (!user) {
     return (
@@ -32,7 +45,7 @@ export default function StudentProfilePage() {
         <p className="text-xs text-gray-500 mb-6">Login to manage your profile and view your past canteen bills.</p>
         <Link
           href="/login"
-          className="bg-orange-600 text-white font-bold px-6 py-3 rounded-2xl shadow-md inline-block"
+          className="bg-orange-600 text-white font-bold px-6 py-3 rounded-2xl shadow-md inline-block text-xs"
         >
           Login
         </Link>
@@ -45,6 +58,36 @@ export default function StudentProfilePage() {
     router.push('/login');
   };
 
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName.trim()) return;
+
+    try {
+      setSaving(true);
+      setSuccessMsg('');
+      const res = await api.patch('/auth/profile', {
+        name: editName.trim(),
+        profileImage: editImage || user.profileImage,
+      });
+
+      const updated = res.data.data.user;
+      updateUser({
+        name: updated.name,
+        profileImage: updated.profileImage,
+      });
+
+      setSuccessMsg(language === 'hi' ? 'प्रोफ़ाइल सफलतापूर्वक अपडेट हो गई!' : 'Profile updated successfully!');
+      setTimeout(() => {
+        setIsEditing(false);
+        setSuccessMsg('');
+      }, 1500);
+    } catch (err: any) {
+      alert(err.message || 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const getLanguageLabel = () => {
     if (language === 'hi') return 'हिन्दी (Hindi)';
     if (language === 'gu') return 'ગુજરાતી (Gujarati)';
@@ -52,22 +95,37 @@ export default function StudentProfilePage() {
   };
 
   return (
-    <div className="max-w-md mx-auto px-4 py-4 pb-12">
+    <div className="max-w-md mx-auto px-4 py-4 pb-20">
       <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight mb-4">
         {t('profile')}
       </h1>
 
+      {successMsg && (
+        <div className="mb-4 p-3.5 bg-emerald-50 text-emerald-800 rounded-2xl border border-emerald-200 flex items-center gap-2 text-xs font-bold animate-in fade-in">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
       {/* User Card */}
-      <div className="bg-white rounded-3xl p-6 border border-orange-100 shadow-sm mb-4 text-center">
+      <div className="bg-white rounded-3xl p-6 border border-orange-100 shadow-sm mb-4 text-center relative overflow-hidden">
         <div className="relative w-24 h-24 mx-auto mb-3">
           <img
             src={user.profileImage || 'https://api.dicebear.com/7.x/bottts/svg?seed=student'}
             alt={user.name}
             className="w-full h-full rounded-full border-4 border-orange-500 object-cover shadow-md"
           />
-          <div className="absolute -bottom-1 -right-1 bg-orange-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
-            {user.role}
-          </div>
+          <button
+            onClick={() => {
+              setEditName(user.name);
+              setEditImage(user.profileImage || '');
+              setIsEditing(true);
+            }}
+            className="absolute bottom-0 right-0 bg-orange-600 text-white p-1.5 rounded-full shadow-lg hover:bg-orange-700 transition"
+            title="Edit Photo"
+          >
+            <Camera className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         <h2 className="text-xl font-extrabold text-gray-900">{user.name}</h2>
@@ -75,6 +133,18 @@ export default function StudentProfilePage() {
           <Phone className="w-3.5 h-3.5" />
           <span>+91 {user.phone || 'No phone'}</span>
         </div>
+
+        <button
+          onClick={() => {
+            setEditName(user.name);
+            setEditImage(user.profileImage || '');
+            setIsEditing(true);
+          }}
+          className="mt-3 inline-flex items-center gap-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-black px-4 py-1.5 rounded-full border border-orange-200 transition active:scale-95"
+        >
+          <Edit3 className="w-3.5 h-3.5" />
+          <span>{language === 'hi' ? 'नाम और फोटो बदलें' : 'Edit Profile & Selfie'}</span>
+        </button>
       </div>
 
       {/* Navigation Links */}
@@ -162,11 +232,86 @@ export default function StudentProfilePage() {
       {/* Logout button */}
       <button
         onClick={handleLogout}
-        className="w-full flex items-center justify-center gap-2 p-4 rounded-3xl bg-rose-50 text-rose-700 hover:bg-rose-100 font-extrabold text-xs transition"
+        className="w-full flex items-center justify-center gap-2 p-4 rounded-3xl bg-rose-50 text-rose-700 hover:bg-rose-100 font-extrabold text-xs transition active:scale-98"
       >
         <LogOut className="w-4 h-4" />
         <span>Logout Account</span>
       </button>
+
+      {/* Edit Profile Modal */}
+      {isEditing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-orange-100 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+              <h3 className="font-black text-lg text-gray-900">
+                {language === 'hi' ? 'प्रोफ़ाइल और फ़ोटो संपादित करें' : 'Edit Profile & Selfie'}
+              </h3>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              {/* Selfie Camera Update */}
+              <div className="text-center pb-2">
+                <label className="block text-xs font-bold text-gray-700 mb-2">
+                  📸 Change Selfie Photo (Live Camera / Upload)
+                </label>
+                <SelfieCamera onCapture={(img) => setEditImage(img)} initialImage={editImage} />
+              </div>
+
+              {/* Name Input */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Your Name"
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-sm font-semibold outline-hidden"
+                />
+              </div>
+
+              {/* Phone (Readonly) */}
+              <div>
+                <label className="block text-xs font-bold text-gray-400 mb-1">
+                  Mobile Number (Registered)
+                </label>
+                <input
+                  type="text"
+                  disabled
+                  value={`+91 ${user.phone || ''}`}
+                  className="w-full px-4 py-3 rounded-2xl bg-gray-100 border border-gray-200 text-sm font-semibold text-gray-500 cursor-not-allowed"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="flex-1 py-3.5 rounded-2xl font-extrabold text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving || !editName.trim()}
+                  className="flex-1 py-3.5 rounded-2xl font-extrabold text-xs text-white bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 shadow-lg shadow-orange-600/20 transition flex items-center justify-center gap-1.5"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{saving ? 'Saving...' : 'Save Profile'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <LanguageModal isOpen={langModalOpen} onClose={() => setLangModalOpen(false)} />
     </div>

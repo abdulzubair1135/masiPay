@@ -44,7 +44,10 @@ export default function AdminSettingsPage() {
     try {
       setSaving(true);
       setSavedSuccess(false);
-      await api.patch('/admin/settings', settings);
+      const { _id, __v, createdAt, updatedAt, ...cleanPayload } = settings;
+      if (cleanPayload.upiId) cleanPayload.upiId = cleanPayload.upiId.trim();
+      const res = await api.patch('/admin/settings', cleanPayload);
+      setSettings(res.data.data);
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err: any) {
