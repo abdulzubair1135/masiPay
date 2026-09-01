@@ -5,7 +5,6 @@ import { MenuItem } from './models/MenuItem.js';
 import { MenuCategory } from './models/MenuCategory.js';
 import { Order } from './models/Order.js';
 import { Payment } from './models/Payment.js';
-import { AuthService } from './services/auth.service.js';
 import { OrderService } from './services/order.service.js';
 import { PaymentService } from './services/payment.service.js';
 import { generateToken, verifyToken } from './utils/jwt.js';
@@ -65,6 +64,8 @@ async function runSecurityAndPaymentTests() {
     };
 
     const createdOrder = await OrderService.createOrder(orderPayload);
+    if (!createdOrder) throw new Error('Failed to create order');
+
     assert(
       createdOrder.total === 50,
       'Server recalculates price strictly from DB',
@@ -106,6 +107,7 @@ async function runSecurityAndPaymentTests() {
       userId: student2._id.toString(),
       items: [{ menuItemId: item._id.toString(), quantity: 1 }],
     });
+    if (!order2) throw new Error('Failed to create order 2');
 
     let duplicateBlocked = false;
     try {
@@ -164,12 +166,12 @@ async function runSecurityAndPaymentTests() {
     });
 
     // Masi verifies payment
-    const verifiedOrder = await PaymentService.verifyPayment(
+    const verifiedResult = await PaymentService.verifyPayment(
       createdOrder._id.toString(),
       masiStaff
     );
     assert(
-      verifiedOrder.status === 'ACCEPTED',
+      (verifiedResult as any).order?.status === 'ACCEPTED' || (verifiedResult as any).status === 'ACCEPTED',
       'Payment verified transitions status to ACCEPTED'
     );
 
