@@ -25,6 +25,7 @@ export class PaymentWebhookController {
       let parsedAmount = rawAmount ? Number(rawAmount) : 0;
       let parsedUtr = rawUtr ? String(rawUtr).trim() : '';
       let parsedSender = sender ? String(sender).trim() : '';
+      let parsedTokenNumber: number | null = null;
 
       // Parse from raw notification/SMS text if passed (e.g. "SHAIKH ABDUL ZUBAIRA paid you ₹1.00")
       if (text && typeof text === 'string') {
@@ -44,6 +45,15 @@ export class PaymentWebhookController {
           }
         }
 
+        // Parse Token Number from UPI Note (e.g. "Token #101" or "Token 101")
+        const tokenMatch = text.match(/token[\s#_-]*(\d+)/i);
+        if (tokenMatch) {
+          const num = parseInt(tokenMatch[1], 10);
+          if (!isNaN(num)) {
+            parsedTokenNumber = num;
+          }
+        }
+
         // Parse 12-digit UTR / Reference ID if available
         if (!parsedUtr) {
           const utrMatch =
@@ -55,7 +65,7 @@ export class PaymentWebhookController {
       }
 
       console.log(
-        `[Auto-Sync Webhook] Notification parsed: Sender="${parsedSender}", Amount=₹${parsedAmount}, UTR="${parsedUtr}", Raw="${text}"`
+        `[Auto-Sync Webhook] Notification parsed: Sender="${parsedSender}", Token=${parsedTokenNumber}, Amount=₹${parsedAmount}, UTR="${parsedUtr}", Raw="${text}"`
       );
 
       // Find system bot or admin user for auto-action
@@ -66,8 +76,16 @@ export class PaymentWebhookController {
 
       let matchedOrder: any = null;
 
+      // Match Strategy 0: Direct Match by Token Number (from UPI Note "Token #101")
+      if (parsedTokenNumber) {
+        matchedOrder = await Order.findOne({
+          orderNumber: parsedTokenNumber,
+          status: { $in: ['PENDING_PAYMENT', 'PAYMENT_VERIFYING'] },
+        }).populate('userId', 'name phone');
+      }
+
       // Match Strategy 1: Match by UTR / Reference number (if present)
-      if (parsedUtr) {
+      if (!matchedOrder && parsedUtr) {
         const payment = await Payment.findOne({
           transactionReference: parsedUtr,
           status: { $in: ['PENDING', 'USER_CLAIMED'] },
