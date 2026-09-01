@@ -29,6 +29,24 @@ export class PaymentService {
       throw new Error(`Cannot claim payment for order in ${order.status} state`);
     }
 
+    // Anti-Fraud: Prevent duplicate UTR / Reference recycling across multiple orders
+    if (
+      transactionReference &&
+      transactionReference.trim().length >= 6 &&
+      !['CASH_AT_COUNTER', 'UPI_DIRECT'].includes(transactionReference.trim())
+    ) {
+      const duplicateTx = await Payment.findOne({
+        transactionReference: transactionReference.trim(),
+        orderId: { $ne: order._id },
+        status: { $in: ['USER_CLAIMED', 'VERIFIED'] },
+      });
+      if (duplicateTx) {
+        throw new Error(
+          'This UPI Reference / UTR number has already been used for another order! Please enter your unique payment transaction ID.'
+        );
+      }
+    }
+
     let payment = await Payment.findOne({ orderId: order._id });
     if (!payment) {
       payment = await Payment.create({
