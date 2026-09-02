@@ -468,8 +468,8 @@ export default function LiveOrderTrackingPage() {
         onClose={() => setUpiModalOpen(false)}
         orderNumber={orderData.orderNumber}
         total={orderData.total}
-        upiId="canteen@upi"
-        payeeName="Masi Canteen"
+        upiId="abdulzubair221-1@okaxis"
+        payeeName="Abdul Zubair"
         onClaimPaid={handleClaimPayment}
         loading={claimLoading}
       />

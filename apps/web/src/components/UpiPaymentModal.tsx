@@ -35,8 +35,8 @@ export const UpiPaymentModal: React.FC<Props> = ({
   onClose,
   orderNumber,
   total,
-  upiId = 'canteen@upi',
-  payeeName = 'Masi Canteen Services',
+  upiId = 'abdulzubair221-1@okaxis',
+  payeeName = 'Abdul Zubair',
   onClaimPaid,
   loading = false,
 }) => {

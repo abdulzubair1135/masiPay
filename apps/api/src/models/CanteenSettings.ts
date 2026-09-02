@@ -19,8 +19,8 @@ const canteenSettingsSchema = new Schema<ICanteenSettings>(
   {
     canteenName: { type: String, default: 'MasiCanteen' },
     tagline: { type: String, default: 'Order karo, Masi tak turant pahunchao.' },
-    upiId: { type: String, default: 'canteen@upi' },
-    upiPayeeName: { type: String, default: 'Masi Canteen Services' },
+    upiId: { type: String, default: 'abdulzubair221-1@okaxis' },
+    upiPayeeName: { type: String, default: 'Abdul Zubair' },
     upiQrImage: { type: String },
     currencySymbol: { type: String, default: '₹' },
     defaultLanguage: { type: String, default: 'en' },

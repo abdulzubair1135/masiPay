@@ -1,0 +1,12 @@
+{
+  "appId": "com.masipay.staff",
+  "appName": "Masi Kitchen Staff",
+  "webDir": "dist",
+  "server": {
+    "url": "https://masicanteen.vercel.app/staff/dashboard",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
