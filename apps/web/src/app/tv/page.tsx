@@ -88,7 +88,7 @@ export default function PublicCanteenTvDisplay() {
           </div>
           <div>
             <h1 className="text-3xl font-black tracking-tight text-white flex items-center gap-3">
-              <span>MASI CANTEEN LIVE CALLING BOARD</span>
+              <span>SRK CANTEEN LIVE CALLING BOARD</span>
               <span className="bg-emerald-500 text-black text-xs font-black px-2.5 py-1 rounded-full uppercase animate-pulse">
                 LIVE
               </span>
@@ -240,7 +240,7 @@ export default function PublicCanteenTvDisplay() {
           💡 Order on your phone at: <strong className="text-white font-extrabold">masicanteen.vercel.app</strong>
         </div>
         <div>
-          ⚡ Masi Smart Canteen Realtime Display
+          ⚡ SRK Smart Canteen Realtime Display
         </div>
       </footer>
     </div>

@@ -1,6 +1,6 @@
 {
   "appId": "com.masipay.staff",
-  "appName": "Masi Kitchen Staff",
+  "appName": "SRK Kitchen Staff",
   "webDir": "dist",
   "server": {
     "url": "https://masicanteen.vercel.app/staff/dashboard",

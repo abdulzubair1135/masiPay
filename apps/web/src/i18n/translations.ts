@@ -2,9 +2,9 @@ export type Language = 'en' | 'hi' | 'gu';
 
 export const translations = {
   en: {
-    appName: 'MasiCanteen',
-    tagline: 'Order karo, Masi tak turant pahunchao.',
-    welcome: 'Welcome to MasiCanteen',
+    appName: 'SRK Canteen',
+    tagline: 'Order karo, Counter se turant pao.',
+    welcome: 'Welcome to SRK Canteen',
     table: 'Table',
     tableNumber: 'Table {num}',
     goodMorning: 'Good Morning',
@@ -74,9 +74,9 @@ export const translations = {
     waitingTimer: 'Waiting: {time}',
   },
   hi: {
-    appName: 'मासी कैंटीन',
-    tagline: 'ऑर्डर करो, मासी तक तुरंत पहुँचाओ।',
-    welcome: 'मासी कैंटीन में आपका स्वागत है',
+    appName: 'SRK कैंटीन',
+    tagline: 'ऑर्डर करो, काउंटर से तुरंत पाओ।',
+    welcome: 'SRK कैंटीन में आपका स्वागत है',
     table: 'टेबल',
     tableNumber: 'टेबल {num}',
     goodMorning: 'शुभ प्रभात',
@@ -146,9 +146,9 @@ export const translations = {
     waitingTimer: 'प्रतीक्षा समय: {time}',
   },
   gu: {
-    appName: 'માસી કેન્ટીન',
-    tagline: 'ઓર્ડર કરો, માસી સુધી તરત પહોંચાડો.',
-    welcome: 'માસી કેન્ટીનમાં તમારું સ્વાગત છે',
+    appName: 'SRK કેન્ટીન',
+    tagline: 'ઓર્ડર કરો, કાઉન્ટર પરથી તરત મેળવો.',
+    welcome: 'SRK કેન્ટીનમાં તમારું સ્વાગત છે',
     table: 'ટેબલ',
     tableNumber: 'ટેબલ {num}',
     goodMorning: 'શુભ સવાર',

@@ -17,8 +17,8 @@ export interface ICanteenSettings extends Document {
 
 const canteenSettingsSchema = new Schema<ICanteenSettings>(
   {
-    canteenName: { type: String, default: 'MasiCanteen' },
-    tagline: { type: String, default: 'Order karo, Masi tak turant pahunchao.' },
+    canteenName: { type: String, default: 'SRK Canteen' },
+    tagline: { type: String, default: 'Order online, pickup at counter instantly.' },
     upiId: { type: String, default: 'abdulzubair221-1@okaxis' },
     upiPayeeName: { type: String, default: 'Abdul Zubair' },
     upiQrImage: { type: String },

@@ -1,7 +1,7 @@
 {
-  "name": "MasiCanteen",
-  "short_name": "MasiCanteen",
-  "description": "Order karo, Masi tak turant pahunchao - College Canteen App",
+  "name": "SRK Canteen",
+  "short_name": "SRK Canteen",
+  "description": "SRK Canteen - Smart College Canteen Fast Food & Dining App",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Masi Kitchen Staff</string>
-    <string name="title_activity_main">Masi Kitchen Staff</string>
+    <string name="app_name">SRK Kitchen Staff</string>
+    <string name="title_activity_main">SRK Kitchen Staff</string>
     <string name="package_name">com.masipay.staff</string>
     <string name="custom_url_scheme">com.masipay.staff</string>
 </resources>

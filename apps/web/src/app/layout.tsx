@@ -7,8 +7,8 @@ import { Navbar } from '../components/Navbar';
 import { BottomNav } from '../components/BottomNav';
 
 export const metadata: Metadata = {
-  title: 'MasiCanteen — Order karo, Masi tak turant pahunchao',
-  description: 'Smart College Canteen Order Management System with Instant QR and UPI verification',
+  title: 'SRK Canteen — Smart College Canteen & Fast Food Order System',
+  description: 'SRK Canteen — Order online, pickup at your counter with instant UPI verification',
   manifest: '/manifest.json',
 };
 
