@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth.middleware.js';
+import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 import { User } from '../models/User.js';
 import { Order } from '../models/Order.js';
 import { Payment } from '../models/Payment.js';
@@ -9,7 +9,7 @@ import { getIO } from '../socket/socket.server.js';
 import { logAction } from '../services/audit.service.js';
 
 export class WalletController {
-  static async getWalletDetails(req: AuthRequest, res: Response): Promise<void> {
+  static async getWalletDetails(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const user = await User.findById(req.user!._id);
       if (!user) {
@@ -33,7 +33,7 @@ export class WalletController {
     }
   }
 
-  static async rechargeWallet(req: AuthRequest, res: Response): Promise<void> {
+  static async rechargeWallet(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { amount, reference } = req.body;
       const numAmount = Number(amount);
@@ -76,7 +76,7 @@ export class WalletController {
     }
   }
 
-  static async payOrderWithWallet(req: AuthRequest, res: Response): Promise<void> {
+  static async payOrderWithWallet(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { orderId } = req.body;
       if (!orderId) {
