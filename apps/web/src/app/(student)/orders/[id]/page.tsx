@@ -28,7 +28,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { WalletModal } from '../../../components/WalletModal';
+import { WalletModal } from '../../../../components/WalletModal';
 
 export default function LiveOrderTrackingPage() {
   const params = useParams();

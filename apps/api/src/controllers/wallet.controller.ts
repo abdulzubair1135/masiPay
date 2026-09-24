@@ -1,11 +1,11 @@
 import { Response } from 'express';
-import { AuthRequest } from '../middlewares/auth.middleware.js';
+import { AuthRequest } from '../middleware/auth.middleware.js';
 import { User } from '../models/User.js';
 import { Order } from '../models/Order.js';
 import { Payment } from '../models/Payment.js';
 import { WalletTransaction } from '../models/WalletTransaction.js';
 import { OrderStatusHistory } from '../models/OrderStatusHistory.js';
-import { getSocketServer } from '../socket/index.js';
+import { getIO } from '../socket/socket.server.js';
 import { logAction } from '../services/audit.service.js';
 
 export class WalletController {
@@ -169,22 +169,26 @@ export class WalletController {
       });
 
       // Realtime Socket Broadcasts
-      const io = getSocketServer();
-      if (io) {
-        io.to(`order-${order._id}`).emit('order:status_changed', {
-          orderId: order._id,
-          newStatus: 'ACCEPTED',
-          pickupCounter: order.pickupCounter,
-          paymentStatus: 'VERIFIED',
-        });
+      try {
+        const io = getIO();
+        if (io) {
+          io.to(`order-${order._id}`).emit('order:status_changed', {
+            orderId: order._id,
+            newStatus: 'ACCEPTED',
+            pickupCounter: order.pickupCounter,
+            paymentStatus: 'VERIFIED',
+          });
 
-        io.to('staff:kitchen').emit('staff:order_accepted', {
-          orderId: order._id,
-          orderNumber: order.orderNumber,
-          pickupCounter: order.pickupCounter,
-          total: order.total,
-          method: 'WALLET',
-        });
+          io.to('staff:kitchen').emit('staff:order_accepted', {
+            orderId: order._id,
+            orderNumber: order.orderNumber,
+            pickupCounter: order.pickupCounter,
+            total: order.total,
+            method: 'WALLET',
+          });
+        }
+      } catch (e) {
+        // Socket may not be initialized in background tasks/tests
       }
 
       res.json({

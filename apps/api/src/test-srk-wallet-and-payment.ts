@@ -159,13 +159,24 @@ async function runPaymentAndWalletTests() {
   });
 
   const simulatedNotificationText = `Dear BOB UPI User: Your account is credited with INR 30.00 on 2026-09-24 by UPI Ref No 789123456789; - BOB`;
-  const result = await PaymentWebhookController.processAutoVerification(simulatedNotificationText, 'com.bankofbaroda.upi');
+  let webhookResponseBody: any = null;
+  const mockReq: any = {
+    body: {
+      text: simulatedNotificationText,
+      secretKey: 'MASI_AUTO_SYNC_SECRET_2026',
+    },
+  };
+  const mockRes: any = {
+    status: () => mockRes,
+    json: (data: any) => { webhookResponseBody = data; return mockRes; },
+  };
+  await PaymentWebhookController.handleNotificationWebhook(mockReq, mockRes);
 
   const refreshedOrder = await Order.findById(upiOrder._id);
   const refreshedPayment = await Payment.findById(upiPayment._id);
 
   console.log(`Notification processed: "${simulatedNotificationText}"`);
-  console.log(`Webhook Match Result:`, result);
+  console.log(`Webhook Match Result:`, webhookResponseBody);
   console.log(`Updated Order Status: ${refreshedOrder?.status}`);
   console.log(`Updated Payment Status: ${refreshedPayment?.status}`);
 
