@@ -475,6 +475,20 @@ export default function StaffKitchenDashboard() {
                         <Phone className="w-3.5 h-3.5 text-orange-600 shrink-0" />
                         <span>+91 {order.userId?.phone || 'No phone'} (Call)</span>
                       </a>
+                      {order.userId?.phone && (
+                        <a
+                          href={`https://wa.me/91${order.userId.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
+                            `🎉 *SRK Canteen Alert!*\n\nHello ${order.userId.name || 'Student'}! Aapka Order *TOKEN #${order.orderNumber}* ready hai! 🍽️\n\n📍 *Pickup Counter:* ${order.pickupCounter || 'Counter A'}\n💰 *Amount:* ₹${order.total}\n\nCounter se apna order collect kar lein! 🚀`
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-300 mt-1 transition"
+                          title="Send WhatsApp Ready Alert to Student"
+                        >
+                          <MessageCircle className="w-3 h-3 text-emerald-600" />
+                          <span>WhatsApp Alert</span>
+                        </a>
+                      )}
                     </div>
 
                     {/* Payment Mode Badge */}

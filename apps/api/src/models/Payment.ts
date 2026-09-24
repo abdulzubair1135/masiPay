@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema, Types } from 'mongoose';
 
-export type PaymentMethod = 'UPI_MANUAL' | 'CASH' | 'RAZORPAY';
+export type PaymentMethod = 'UPI_MANUAL' | 'CASH' | 'RAZORPAY' | 'WALLET';
 export type PaymentStatus = 'PENDING' | 'USER_CLAIMED' | 'VERIFIED' | 'REJECTED' | 'REFUNDED';
 
 export interface IPayment extends Document {
@@ -23,7 +23,7 @@ const paymentSchema = new Schema<IPayment>(
     orderId: { type: Schema.Types.ObjectId, ref: 'Order', required: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     amount: { type: Number, required: true, min: 0 },
-    method: { type: String, enum: ['UPI_MANUAL', 'CASH', 'RAZORPAY'], default: 'UPI_MANUAL' },
+    method: { type: String, enum: ['UPI_MANUAL', 'CASH', 'RAZORPAY', 'WALLET'], default: 'UPI_MANUAL' },
     status: {
       type: String,
       enum: ['PENDING', 'USER_CLAIMED', 'VERIFIED', 'REJECTED', 'REFUNDED'],

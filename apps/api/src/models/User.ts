@@ -14,6 +14,7 @@ export interface IUser extends Document {
   language: UserLanguage;
   role: UserRole;
   status: UserStatus;
+  walletBalance?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +30,7 @@ const userSchema = new Schema<IUser>(
     language: { type: String, enum: ['en', 'hi', 'gu'], default: 'en' },
     role: { type: String, enum: ['SUPER_ADMIN', 'STAFF', 'STUDENT'], default: 'STUDENT' },
     status: { type: String, enum: ['ACTIVE', 'SUSPENDED', 'INACTIVE'], default: 'ACTIVE' },
+    walletBalance: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true }
 );

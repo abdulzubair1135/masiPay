@@ -16,6 +16,9 @@ import {
   Check,
   AlertCircle,
   UtensilsCrossed,
+  Flame,
+  Zap,
+  Tag,
 } from 'lucide-react';
 
 export default function StudentMenuPage() {
@@ -174,6 +177,129 @@ export default function StudentMenuPage() {
             placeholder={t('searchMenu')}
             className="w-full pl-10 pr-4 py-3 bg-white rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm shadow-2xs transition"
           />
+        </div>
+
+        {/* 🔥 SRK Daily Combos & Special Offers Section */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-black text-gray-900 uppercase tracking-wider">
+              <Flame className="w-4 h-4 text-orange-600 animate-pulse" />
+              <span>🔥 SRK Daily Combos & Offers</span>
+            </div>
+            <span className="text-[10px] bg-red-100 text-red-700 font-extrabold px-2 py-0.5 rounded-full">
+              SAVE UP TO ₹20
+            </span>
+          </div>
+
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+            {/* Combo 1 */}
+            <div className="min-w-[240px] max-w-[260px] bg-gradient-to-br from-amber-500 via-orange-500 to-red-600 rounded-3xl p-3.5 text-white shadow-lg shadow-orange-500/20 flex flex-col justify-between shrink-0">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="bg-white/20 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
+                    ⚡ Most Loved
+                  </span>
+                  <span className="text-[11px] font-black bg-white text-orange-600 px-2 py-0.5 rounded-full">
+                    SAVE ₹10
+                  </span>
+                </div>
+                <h3 className="font-black text-sm tracking-tight">SRK Dhamaka Combo</h3>
+                <p className="text-[11px] text-orange-100 mt-0.5">2× Samosa + 1× Hot Masala Chai</p>
+              </div>
+              <div className="mt-3 pt-2 border-t border-white/20 flex items-center justify-between">
+                <div>
+                  <span className="text-base font-black">₹30</span>
+                  <span className="text-[10px] text-orange-200 line-through ml-1.5">₹40</span>
+                </div>
+                <button
+                  onClick={() => {
+                    addItem({
+                      _id: 'srk-combo-1',
+                      name: 'SRK Dhamaka Combo (2 Samosa + Chai)',
+                      price: 30,
+                      image: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=200',
+                    });
+                  }}
+                  className="bg-white text-orange-600 hover:bg-orange-50 font-black text-xs px-3 py-1.5 rounded-xl shadow-md transition active:scale-95 flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>ADD</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Combo 2 */}
+            <div className="min-w-[240px] max-w-[260px] bg-gradient-to-br from-orange-600 via-amber-600 to-yellow-600 rounded-3xl p-3.5 text-white shadow-lg shadow-orange-600/20 flex flex-col justify-between shrink-0">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="bg-white/20 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
+                    ⭐ Today's Special
+                  </span>
+                  <span className="text-[11px] font-black bg-white text-amber-700 px-2 py-0.5 rounded-full">
+                    SAVE ₹15
+                  </span>
+                </div>
+                <h3 className="font-black text-sm tracking-tight">Mumbai Pav Bhaji Feast</h3>
+                <p className="text-[11px] text-amber-100 mt-0.5">Butter Pav Bhaji + Extra Pav + Nimbu</p>
+              </div>
+              <div className="mt-3 pt-2 border-t border-white/20 flex items-center justify-between">
+                <div>
+                  <span className="text-base font-black">₹60</span>
+                  <span className="text-[10px] text-amber-200 line-through ml-1.5">₹75</span>
+                </div>
+                <button
+                  onClick={() => {
+                    addItem({
+                      _id: 'srk-combo-2',
+                      name: "Today's Special Pav Bhaji Feast",
+                      price: 60,
+                      image: 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=200',
+                    });
+                  }}
+                  className="bg-white text-amber-700 hover:bg-amber-50 font-black text-xs px-3 py-1.5 rounded-xl shadow-md transition active:scale-95 flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>ADD</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Combo 3 */}
+            <div className="min-w-[240px] max-w-[260px] bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 rounded-3xl p-3.5 text-white shadow-lg shadow-teal-600/20 flex flex-col justify-between shrink-0">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="bg-white/20 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
+                    🍱 Student Lunch Box
+                  </span>
+                  <span className="text-[11px] font-black bg-white text-emerald-800 px-2 py-0.5 rounded-full">
+                    SAVE ₹20
+                  </span>
+                </div>
+                <h3 className="font-black text-sm tracking-tight">Full Thali Power Meal</h3>
+                <p className="text-[11px] text-emerald-100 mt-0.5">Dal Tadka + Jeera Rice + 2 Roti + Sabzi</p>
+              </div>
+              <div className="mt-3 pt-2 border-t border-white/20 flex items-center justify-between">
+                <div>
+                  <span className="text-base font-black">₹70</span>
+                  <span className="text-[10px] text-emerald-200 line-through ml-1.5">₹90</span>
+                </div>
+                <button
+                  onClick={() => {
+                    addItem({
+                      _id: 'srk-combo-3',
+                      name: 'Full Thali Power Meal (Dal Rice + Roti)',
+                      price: 70,
+                      image: 'https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=200',
+                    });
+                  }}
+                  className="bg-white text-emerald-700 hover:bg-emerald-50 font-black text-xs px-3 py-1.5 rounded-xl shadow-md transition active:scale-95 flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>ADD</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Categories Pills */}

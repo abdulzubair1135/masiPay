@@ -195,6 +195,17 @@ export class OrderService {
     if (newStatus === 'READY') {
       order.readyAt = new Date();
       if (pickupCounter) order.pickupCounter = pickupCounter;
+
+      const studentUser = order.userId as any;
+      const studentPhone = studentUser?.phone;
+      if (studentPhone) {
+        const cleanPhone = studentPhone.replace(/\D/g, '');
+        const targetPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+        const studentName = studentUser?.name || 'Student';
+        const counterName = order.pickupCounter || 'Counter A';
+        const msg = `🎉 *SRK CANTEEN ALERT!*\n\nHello ${studentName}! Aapka Order *TOKEN #${order.orderNumber}* bilkul READY hai! 🍽️🔥\n\n📍 *Pickup Counter:* ${counterName}\n💰 *Total:* ₹${order.total}\n\nJaldi se counter par jakar apna Token #${order.orderNumber} dikhayein aur khana receive karein! 🚀`;
+        order.whatsappAlertUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`;
+      }
     }
     if (newStatus === 'DELIVERED') order.deliveredAt = new Date();
     if (newStatus === 'COMPLETED') order.completedAt = new Date();
@@ -271,6 +282,7 @@ export class OrderService {
       orderNumber: order.orderNumber,
       status: newStatus,
       pickupCounter: order.pickupCounter,
+      whatsappAlertUrl: order.whatsappAlertUrl,
       cancellationReason: order.cancellationReason,
       updatedAt: new Date(),
     };

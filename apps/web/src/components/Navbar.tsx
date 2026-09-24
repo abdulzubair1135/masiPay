@@ -6,13 +6,15 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
 import { LanguageModal } from './LanguageModal';
-import { Globe, MapPin, ShoppingBag, UtensilsCrossed, User as UserIcon } from 'lucide-react';
+import { WalletModal } from './WalletModal';
+import { Globe, MapPin, ShoppingBag, UtensilsCrossed, User as UserIcon, Wallet } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const { user } = useAuth();
   const { table, totalItemsCount } = useCart();
   const { t, language } = useLanguage();
   const [langModalOpen, setLangModalOpen] = useState(false);
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
 
   return (
     <>
@@ -53,6 +55,18 @@ export const Navbar: React.FC = () => {
               <span className="uppercase">{language}</span>
             </button>
 
+            {/* SRK Student Wallet Button */}
+            {user && (
+              <button
+                onClick={() => setWalletModalOpen(true)}
+                className="flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-1.5 rounded-full text-xs font-black shadow-2xs transition active:scale-95"
+                title="SRK Wallet"
+              >
+                <Wallet className="w-3.5 h-3.5 text-amber-600" />
+                <span>₹{(user.walletBalance || 0).toFixed(0)}</span>
+              </button>
+            )}
+
             {/* Cart Icon in Navbar */}
             <Link
               href="/checkout"
@@ -89,6 +103,7 @@ export const Navbar: React.FC = () => {
       </header>
 
       <LanguageModal isOpen={langModalOpen} onClose={() => setLangModalOpen(false)} />
+      <WalletModal isOpen={walletModalOpen} onClose={() => setWalletModalOpen(false)} />
     </>
   );
 };

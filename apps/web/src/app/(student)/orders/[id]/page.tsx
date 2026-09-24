@@ -24,8 +24,11 @@ import {
   Phone,
   Megaphone,
   X,
+  Wallet,
+  MessageSquare,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { WalletModal } from '../../../components/WalletModal';
 
 export default function LiveOrderTrackingPage() {
   const params = useParams();
@@ -39,6 +42,7 @@ export default function LiveOrderTrackingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [upiModalOpen, setUpiModalOpen] = useState(false);
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [claimLoading, setClaimLoading] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [tokenQrDataUrl, setTokenQrDataUrl] = useState<string>('');
@@ -310,6 +314,42 @@ export default function LiveOrderTrackingPage() {
         <div className="flex items-center justify-center gap-2">
           <OrderTimerBadge createdAt={orderData.createdAt} />
         </div>
+
+        {/* Payment Action Buttons for Unpaid Orders */}
+        {['PENDING_PAYMENT', 'PAYMENT_VERIFYING'].includes(status) && (
+          <div className="mt-4 pt-4 border-t border-orange-100 space-y-2">
+            <button
+              onClick={() => setWalletModalOpen(true)}
+              className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition active:scale-95"
+            >
+              <Wallet className="w-4 h-4 text-amber-100" />
+              <span>⚡ Pay ₹{orderData.total.toFixed(2)} with SRK Wallet (1-Click)</span>
+            </button>
+
+            <button
+              onClick={() => setUpiModalOpen(true)}
+              className="w-full py-3 bg-white hover:bg-orange-50 text-orange-700 border-2 border-orange-300 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-2xs transition active:scale-95"
+            >
+              <CreditCard className="w-4 h-4 text-orange-600" />
+              <span>📱 Pay via UPI QR / GPay / PhonePe</span>
+            </button>
+          </div>
+        )}
+
+        {/* WhatsApp Ready Alert Link */}
+        {status === 'READY' && (
+          <div className="mt-4 pt-4 border-t border-emerald-100">
+            <a
+              href={orderData.whatsappAlertUrl || `https://wa.me/?text=${encodeURIComponent(`🎉 SRK Canteen: Order Token #${orderData.orderNumber} is READY at ${orderData.pickupCounter || 'Counter A'}!`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition active:scale-95"
+            >
+              <MessageSquare className="w-4 h-4 text-white" />
+              <span>📲 Open WhatsApp Ready Alert</span>
+            </a>
+          </div>
+        )}
       </div>
 
       {/* Live Order Status Pipeline Card */}
@@ -472,6 +512,15 @@ export default function LiveOrderTrackingPage() {
         payeeName="Abdul Zubair"
         onClaimPaid={handleClaimPayment}
         loading={claimLoading}
+      />
+
+      {/* SRK Student Wallet Modal */}
+      <WalletModal
+        isOpen={walletModalOpen}
+        onClose={() => setWalletModalOpen(false)}
+        orderTotal={orderData.total}
+        orderId={orderData._id}
+        onPaymentSuccess={fetchOrderDetails}
       />
     </div>
   );

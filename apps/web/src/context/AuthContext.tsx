@@ -13,6 +13,7 @@ export interface UserProfile {
   language: 'en' | 'hi' | 'gu';
   role: 'SUPER_ADMIN' | 'STAFF' | 'STUDENT';
   status: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE';
+  walletBalance?: number;
 }
 
 interface AuthContextType {

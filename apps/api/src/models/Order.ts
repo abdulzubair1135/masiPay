@@ -33,6 +33,7 @@ export interface IOrder extends Document {
   cancellationReason?: string;
   notes?: string;
   pickupCounter?: string; // e.g. "Counter A", "Counter B", "Counter 1"
+  whatsappAlertUrl?: string;
   kitchenAlert?: {
     type: 'CALL_TO_COUNTER' | 'DELAY' | 'OUT_OF_STOCK' | 'CUSTOM';
     message: string;
@@ -87,6 +88,7 @@ const orderSchema = new Schema<IOrder>(
     cancellationReason: { type: String },
     notes: { type: String },
     pickupCounter: { type: String, trim: true },
+    whatsappAlertUrl: { type: String },
     kitchenAlert: {
       type: { type: String, enum: ['CALL_TO_COUNTER', 'DELAY', 'OUT_OF_STOCK', 'CUSTOM'] },
       message: { type: String },

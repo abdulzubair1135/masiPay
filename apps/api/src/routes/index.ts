@@ -7,6 +7,7 @@ import staffRoutes from './staff.routes.js';
 import adminRoutes from './admin.routes.js';
 import userRoutes from './user.routes.js';
 import paymentRoutes from './payment.routes.js';
+import walletRoutes from './wallet.routes.js';
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use('/staff', staffRoutes);
 router.use('/admin', adminRoutes);
 router.use('/user', userRoutes);
 router.use('/payments', paymentRoutes);
+router.use('/wallet', walletRoutes);
 
 export default router;
